@@ -4,40 +4,20 @@
   <meta charset="UTF-8">
   <title>Sign Here</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- SignaturePad CSS（可根据需要自定义） -->
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 600px;
-      margin: 2rem auto;
-      text-align: center;
-    }
-    input, button {
-      padding: .5rem 1rem;
-      margin: .5rem;
-      font-size: 1rem;
-    }
-    canvas {
-      border: 1px solid #ccc;
-      width: 100%;
-      height: 300px;
-      touch-action: none;
-    }
-    #status {
-      margin-top: .5rem;
-      font-weight: bold;
-    }
+    body { max-width:600px; margin:2rem auto; font-family:Arial,sans-serif; text-align:center; }
+    canvas { border:1px solid #ccc; width:100%; height:300px; touch-action:none; }
+    input, button { padding:.5rem 1rem; margin:.5rem; }
+    #status { font-weight:bold; margin-top:.5rem; }
   </style>
 </head>
 <body>
 
   <h1>Sign Here</h1>
   <label for="id-input">ID:</label>
-  <input id="id-input" type="text" placeholder="Enter ID">
+  <input id="id-input" placeholder="Enter ID">
 
-  <div>
-    <canvas id="sig-canvas"></canvas>
-  </div>
+  <canvas id="sig-canvas"></canvas>
 
   <div>
     <button id="clear-btn">Clear</button>
@@ -46,58 +26,65 @@
 
   <div id="status"></div>
 
-  <!-- 引入 SignaturePad -->
+  <!-- 1. 引入 SignaturePad -->
   <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
-  <!-- 引入 Supabase JS -->
+  <!-- 2. 引入 Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/umd/supabase.min.js"></script>
 
+  <!-- 3. 你的业务脚本，一定要放在这两行之后 -->
   <script>
-    // ❶ 配置你的 Supabase 项目
+    // —— Supabase 初始化 ——  
     const SUPABASE_URL  = 'https://feidochrncyejojvmxog.supabase.co';
     const SUPABASE_ANON = 'sb_publishable_zGi43MB9RNuhAWJ5f-O68A_nLK9HT7u';
+    // 注意这里直接用全局的 supabase
     const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+    console.log('Supabase client:', supabase);
 
-    // ❷ 初始化 SignaturePad 和 DOM 引用
-    const canvas     = document.getElementById('sig-canvas');
-    const pad        = new SignaturePad(canvas);
-    const idInput    = document.getElementById('id-input');
-    const clearBtn   = document.getElementById('clear-btn');
-    const submitBtn  = document.getElementById('submit-btn');
-    const statusEl   = document.getElementById('status');
+    // —— DOM & SignaturePad 初始化 ——  
+    const canvas    = document.getElementById('sig-canvas');
+    // 确保 canvas 有具体 pixel 大小，否则触摸/画不出来
+    canvas.width  = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
 
-    // ❸ 绑定清空按钮
-    clearBtn.addEventListener('click', () => {
+    const pad       = new SignaturePad(canvas);
+    console.log('SignaturePad initialized:', pad);
+
+    const idInput   = document.getElementById('id-input');
+    const clearBtn  = document.getElementById('clear-btn');
+    const submitBtn = document.getElementById('submit-btn');
+    const statusEl  = document.getElementById('status');
+
+    // —— 清空按钮 ——  
+    clearBtn.onclick = () => {
       pad.clear();
       statusEl.textContent = '';
-    });
+    };
 
-    // ❹ 绑定提交按钮
-    submitBtn.addEventListener('click', async () => {
+    // —— 提交按钮 ——  
+    submitBtn.onclick = async () => {
       if (pad.isEmpty()) {
-        alert('Please sign first!');
-        return;
+        return alert('Please sign first!');
       }
       submitBtn.disabled = true;
       statusEl.textContent = 'Submitting…';
 
       try {
-        // 获取 Base64 Data URL
+        // 1. 拿到 Base64
         const dataURL = pad.toDataURL('image/png');
 
-        // 读取 ID：优先输入框，其次 URL 参数 ?cid=
+        // 2. 读取 ID
         let customerId = idInput.value.trim();
         if (!customerId) {
           customerId = new URLSearchParams(location.search).get('cid') || 'guest';
         }
 
-        // 插入 signatures 表的新记录
+        // 3. 写入数据库
         const { error } = await supabase
           .from('signatures')
           .insert([{
             customer_id:    customerId,
             signature_data: dataURL
           }]);
-
         if (error) throw error;
 
         statusEl.textContent = 'Submit success!';
@@ -112,7 +99,7 @@
       } finally {
         submitBtn.disabled = false;
       }
-    });
+    };
   </script>
 
 </body>
