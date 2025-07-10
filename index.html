@@ -55,7 +55,7 @@
     // ❶ 配置你的 Supabase 项目
     const SUPABASE_URL  = 'https://feidochrncyejojvmxog.supabase.co';
     const SUPABASE_ANON = 'sb_publishable_zGi43MB9RNuhAWJ5f-O68A_nLK9HT7u';
-    const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON);
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
     // ❷ 初始化 SignaturePad 和 DOM 引用
     const canvas     = document.getElementById('sig-canvas');
