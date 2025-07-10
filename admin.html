@@ -2,139 +2,100 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Submitted Signatures</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 2rem;
-      max-width: 800px;
-      margin: auto;
-    }
-    h1 {
-      text-align: center;
-      margin-bottom: 1rem;
-    }
-    #grid .card {
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      padding: 1rem;
-      margin-bottom: 1rem;
-      display: flex;
+    body { font-family: sans-serif; padding: 1rem; max-width: 600px; margin: auto }
+    .card { 
+      border: 1px solid #ccc; 
+      border-radius: 4px; 
+      padding: .5rem; 
+      margin-bottom: .75rem; 
+      display: flex; 
       align-items: center;
-      gap: 1rem;
+      justify-content: space-between;
     }
-    .sig-thumb {
-      max-width: 150px;
-      max-height: 80px;
-      object-fit: contain;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-    }
-    .info {
-      flex: 1;
-    }
-    .info p {
-      margin: 0.2rem 0;
-    }
-    .download-btn {
-      display: inline-block;
-      padding: 0.5rem 1rem;
-      background: #007bff;
-      color: white;
-      text-decoration: none;
-      border-radius: 4px;
-      font-size: 0.9rem;
-    }
-    .download-btn:hover {
-      background: #0056b3;
-    }
-    #status {
-      text-align: center;
-      margin-top: 2rem;
-      color: #666;
+    .info { flex: 1; margin-left: .5rem; }
+    img { max-height: 60px; }
+    button { 
+      background: #007aff; 
+      color: white; 
+      border: none; 
+      padding: .4rem .8rem; 
+      border-radius: 3px; 
+      cursor: pointer;
     }
   </style>
-  <!-- 引入 Supabase JS -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
 <body>
+
   <h1>Submitted Signatures</h1>
-  <div id="grid"></div>
-  <div id="status">Loading...</div>
+  <div id="grid">Loading…</div>
 
+  <!-- 引入 supabase.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
-  (async () => {
-    const SUPABASE_URL = 'https://feidochrncyejojvmxog.supabase.co';
-    const SUPABASE_ANON = 'sb_publ…nLK9HT7u'; // 请填入你的匿名公共 KEY
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+    (async () => {
+      // —— 换成你自己的项目地址 & 匿名 key ——
+      const SUPA_URL = 'https://feidochrncyejojvmxog.supabase.co'
+      const SUPA_KEY = 'sb_publicable_…你的 anon key…'
+      const supabase = supabaseJs.createClient(SUPA_URL, SUPA_KEY)
 
-    const gridEl   = document.getElementById('grid');
-    const statusEl = document.getElementById('status');
+      const gridEl = document.getElementById('grid')
+      try {
+        // 只选我们真正需要的三列
+        let { data: rows, error } = await supabase
+          .from('signatures')
+          .select('customer_id, inserted_at, signature_data')
+          .order('inserted_at', { ascending: false })
 
-    try {
-      // 1) 从 signatures 表中获取记录
-      const { data: rows, error } = await supabase
-        .from('signatures')
-        .select('customer_id, path, inserted_at, signature_data')
-        .order('inserted_at', { ascending: false });
-
-      if (error) throw error;
-      if (!rows.length) {
-        statusEl.textContent = 'No signatures submitted yet.';
-        return;
-      }
-
-      // 清掉 loading 文本
-      statusEl.style.display = 'none';
-
-      // 2) 渲染每条记录
-      for (const row of rows) {
-        const card = document.createElement('div');
-        card.className = 'card';
-
-        // 2.1 缩略图 <img>
-        const img = document.createElement('img');
-        img.className = 'sig-thumb';
-        if (row.path) {
-          // 从 Storage 桶获取公开 URL
-          const { publicURL } = supabase
-            .storage
-            .from('signatures')
-            .getPublicUrl(row.path);
-          img.src = publicURL;
-        } else if (row.signature_data) {
-          // 直接用存库里的 Base64
-          img.src = row.signature_data;
+        if (error) throw error
+        if (!rows.length) {
+          gridEl.textContent = 'No signatures yet.'
+          return
         }
-        card.appendChild(img);
 
-        // 2.2 文本信息
-        const info = document.createElement('div');
-        info.className = 'info';
-        info.innerHTML = `
-          <p><strong>ID:</strong> ${row.customer_id}</p>
-          <p><strong>Time:</strong> ${new Date(row.inserted_at).toLocaleString()}</p>
-        `;
-        card.appendChild(info);
+        // 清空「Loading…」
+        gridEl.innerHTML = ''
 
-        // 2.3 下载按钮
-        const dl = document.createElement('a');
-        dl.className = 'download-btn';
-        dl.innerText = 'Download';
-        // 自动生成文件名：ID_时间戳.png
-        const filename = `${row.customer_id}_${Date.now()}.png`;
-        dl.setAttribute('download', filename);
-        // href 复用 img.src
-        dl.href = img.src;
-        card.appendChild(dl);
+        rows.forEach(row => {
+          // 外框
+          let card = document.createElement('div')
+          card.className = 'card'
 
-        gridEl.appendChild(card);
+          // 左侧：缩略图 + 信息
+          let thumb = document.createElement('img')
+          thumb.src = row.signature_data
+          card.appendChild(thumb)
+
+          let info = document.createElement('div')
+          info.className = 'info'
+          info.innerHTML = `
+            <p><strong>ID:</strong> ${row.customer_id}</p>
+            <p><strong>Time:</strong> ${new Date(row.inserted_at).toLocaleString()}</p>
+          `
+          card.appendChild(info)
+
+          // 右侧：下载按钮
+          let btn = document.createElement('button')
+          btn.textContent = 'Download'
+          btn.onclick = () => {
+            // 动态创建一个 a 标签进行下载
+            let a = document.createElement('a')
+            a.href = row.signature_data
+            // 文件名：sig_客户ID_时间.png
+            let ts = new Date(row.inserted_at).toISOString().replace(/[:.]/g,'-')
+            a.download = `sig_${row.customer_id}_${ts}.png`
+            a.click()
+          }
+          card.appendChild(btn)
+
+          gridEl.appendChild(card)
+        })
+      } catch (err) {
+        gridEl.textContent = 'Error loading data: ' + err.message
+        console.error(err)
       }
-    } catch (err) {
-      statusEl.textContent = 'Error loading data: ' + err.message;
-    }
-  })();
+    })()
   </script>
 </body>
 </html>
