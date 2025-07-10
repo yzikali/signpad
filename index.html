@@ -1,16 +1,197 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width">
-  <title>replit</title>
-  <link href="style.css" rel="stylesheet" type="text/css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>eSignature</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: sans-serif;
+      background: #f5f5f5;
+      display: flex;
+      justify-content: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 600px;
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .id-input {
+      text-align: center;
+      margin-bottom: 12px;
+    }
+
+    .id-input label {
+      font-size: 16px;
+      margin-right: 8px;
+    }
+
+    .id-input input {
+      width: 60%;
+      max-width: 200px;
+      padding: 6px 8px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    .canvas-container {
+      position: relative;
+      width: 100%;
+      padding-top: 50%;
+      /* 2:1 aspect ratio */
+    }
+
+    #canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: 1px solid #ccc;
+      touch-action: none;
+    }
+
+    .btns {
+      text-align: center;
+      margin-top: 15px;
+    }
+
+    button {
+      margin: 0 10px;
+      padding: 8px 16px;
+      font-size: 16px;
+      border: none;
+      border-radius: 4px;
+      background: #007bff;
+      color: #fff;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      background: #999;
+      cursor: not-allowed;
+    }
+
+    #status {
+      text-align: center;
+      margin-top: 10px;
+      min-height: 1.2em;
+      color: #333;
+    }
+  </style>
 </head>
 
 <body>
-  Hello world
-  <script src="script.js"></script>
+  <div class="container">
+    <h2>Sign Here</h2>
+
+    <div class="id-input">
+      <label for="customerIdInput">ID:</label>
+      <input type="text" id="customerIdInput" placeholder="Enter ID" />
+    </div>
+
+    <div class="canvas-container">
+      <canvas id="canvas"></canvas>
+    </div>
+
+    <div class="btns">
+      <button id="clear">Clear</button>
+      <button id="save">Submit</button>
+    </div>
+
+    <p id="status"></p>
+  </div>
+
+  <!-- SignaturePad library -->
+  <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+  <!-- Supabase UMD -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/umd/supabase.min.js"></script>
+  <script>
+    (function () {
+      const SUPABASE_URL = 'https://feidochrnceyjojvnxog.supabase.co';
+      const SUPABASE_ANON = 'sb_publishable_zGi43MB9RNuhAWJ5f-O68A_nLK9HT7u';
+      const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+      const canvas = document.getElementById('canvas');
+      const pad = new SignaturePad(canvas, {minWidth: 1, maxWidth: 3, penColor: 'black'});
+
+      function resizeCanvas() {
+        const ratio = Math.max(window.devicePixelRatio || 1, 1);
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * ratio;
+        canvas.height = rect.height * ratio;
+        canvas.getContext('2d').scale(ratio, ratio);
+        pad.clear();
+      }
+      window.addEventListener('resize', resizeCanvas);
+      resizeCanvas();
+
+      const clearBtn = document.getElementById('clear');
+      const saveBtn = document.getElementById('save');
+      const statusEl = document.getElementById('status');
+      const idInput = document.getElementById('customerIdInput');
+
+      clearBtn.onclick = () => {
+        pad.clear();
+        statusEl.textContent = '';
+        idInput.value = '';
+      };
+
+      saveBtn.onclick = async () => {
+        if (pad.isEmpty()) {
+          return alert('Please sign first!');
+        }
+        saveBtn.disabled = true;
+        statusEl.textContent = 'Uploading…';
+
+        try {
+          const blob = await (await fetch(pad.toDataURL('image/png'))).blob();
+
+          let customerId = idInput.value.trim();
+          if (!customerId) {
+            customerId = new URLSearchParams(location.search).get('cid') || 'guest';
+          }
+          const filename = `${customerId}_${Date.now()}.png`;
+
+          const {data, error: uploadError} = await supabaseClient
+            .storage
+            .from('signatures')
+            .upload(filename, blob, {contentType: 'image/png'});
+          if (uploadError) throw uploadError;
+
+          const {error: dbError} = await supabaseClient
+            .from('signatures')
+            .insert([{customer_id: customerId, path: data.path}]);
+          if (dbError) throw dbError;
+
+          statusEl.textContent = 'Submit success!';
+          alert('Submit success!');
+          pad.clear();
+          idInput.value = '';
+        } catch (err) {
+          console.error(err);
+          alert('Upload failed: ' + err.message);
+          statusEl.textContent = '';
+        } finally {
+          saveBtn.disabled = false;
+        }
+      };
+    })();
+  </script>
 </body>
 
 </html>
