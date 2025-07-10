@@ -4,25 +4,50 @@
   <meta charset="UTF-8" />
   <title>Submitted Signatures</title>
   <style>
-    body { font-family: sans-serif; padding: 1rem; max-width: 600px; margin: auto }
-    .card { 
-      border: 1px solid #ccc; 
-      border-radius: 4px; 
-      padding: .5rem; 
-      margin-bottom: .75rem; 
-      display: flex; 
-      align-items: center;
-      justify-content: space-between;
+    body {
+      font-family: sans-serif;
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 1rem;
     }
-    .info { flex: 1; margin-left: .5rem; }
-    img { max-height: 60px; }
-    button { 
-      background: #007aff; 
-      color: white; 
-      border: none; 
-      padding: .4rem .8rem; 
-      border-radius: 3px; 
+    h1 {
+      text-align: center;
+    }
+    .card {
+      display: flex;
+      align-items: center;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .card img {
+      max-width: 120px;
+      max-height: 80px;
+      object-fit: contain;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .info {
+      flex: 1;
+      margin-left: 1rem;
+    }
+    .info p {
+      margin: 0.25rem 0;
+    }
+    .btn-download {
+      background-color: #007aff;
+      color: white;
+      border: none;
+      padding: 0.4rem 0.75rem;
+      border-radius: 4px;
       cursor: pointer;
+      font-size: 0.9rem;
+    }
+    #grid {
+      min-height: 100px;
+      font-style: italic;
+      color: #555;
     }
   </style>
 </head>
@@ -31,43 +56,45 @@
   <h1>Submitted Signatures</h1>
   <div id="grid">Loading…</div>
 
-  <!-- 引入 supabase.js -->
+  <!-- 1. 引入 Supabase JS UMD 版 -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
     (async () => {
-      // —— 换成你自己的项目地址 & 匿名 key ——
+      // —— 换成你自己的 Supabase 项目 URL 和 匿名 key ——  
       const SUPA_URL = 'https://feidochrncyejojvmxog.supabase.co'
-      const SUPA_KEY = 'sb_publicable_…你的 anon key…'
-      const supabase = supabaseJs.createClient(SUPA_URL, SUPA_KEY)
+      const SUPA_KEY = 'sb_pubilshable_ZGI43M9RNuhAWJ5f-068A_nLK9HT7u' 
 
+      // 2. 用正确的全局变量初始化 supabase 客户端
+      const supabase = supabase.createClient(SUPA_URL, SUPA_KEY)
       const gridEl = document.getElementById('grid')
+
       try {
-        // 只选我们真正需要的三列
+        // 3. 拉取所有签名记录（倒序）
         let { data: rows, error } = await supabase
           .from('signatures')
           .select('customer_id, inserted_at, signature_data')
           .order('inserted_at', { ascending: false })
 
         if (error) throw error
+
+        // 4. 处理空数据
         if (!rows.length) {
-          gridEl.textContent = 'No signatures yet.'
+          gridEl.textContent = 'No signatures submitted yet.'
           return
         }
 
-        // 清空「Loading…」
+        // 5. 渲染列表
         gridEl.innerHTML = ''
-
-        rows.forEach(row => {
-          // 外框
-          let card = document.createElement('div')
+        for (let row of rows) {
+          const card = document.createElement('div')
           card.className = 'card'
 
-          // 左侧：缩略图 + 信息
-          let thumb = document.createElement('img')
-          thumb.src = row.signature_data
-          card.appendChild(thumb)
+          const img = document.createElement('img')
+          img.src = row.signature_data
+          img.alt = `Signature of ${row.customer_id}`
+          card.appendChild(img)
 
-          let info = document.createElement('div')
+          const info = document.createElement('div')
           info.className = 'info'
           info.innerHTML = `
             <p><strong>ID:</strong> ${row.customer_id}</p>
@@ -75,22 +102,24 @@
           `
           card.appendChild(info)
 
-          // 右侧：下载按钮
-          let btn = document.createElement('button')
+          const btn = document.createElement('button')
+          btn.className = 'btn-download'
           btn.textContent = 'Download'
           btn.onclick = () => {
-            // 动态创建一个 a 标签进行下载
-            let a = document.createElement('a')
+            // 自动触发下载
+            const a = document.createElement('a')
             a.href = row.signature_data
-            // 文件名：sig_客户ID_时间.png
-            let ts = new Date(row.inserted_at).toISOString().replace(/[:.]/g,'-')
+            const ts = new Date(row.inserted_at)
+                         .toISOString()
+                         .replace(/[:.]/g, '-')
             a.download = `sig_${row.customer_id}_${ts}.png`
             a.click()
           }
           card.appendChild(btn)
 
           gridEl.appendChild(card)
-        })
+        }
+
       } catch (err) {
         gridEl.textContent = 'Error loading data: ' + err.message
         console.error(err)
