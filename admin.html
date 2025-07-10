@@ -1,129 +1,93 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>Signature Admin</title>
+  <meta charset="UTF-8">
+  <title>Submitted Signatures</title>
   <style>
-    body {
-      margin: 0;
-      padding: 20px;
-      font-family: sans-serif;
-      background: #f5f5f5;
+    body { font-family: sans-serif; padding: 1rem; }
+    #grid { 
+      display: grid; 
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); 
+      gap: 1rem; 
+      margin-top: 1rem;
     }
-
-    h1 {
-      text-align: center;
-      margin-bottom: 16px;
-    }
-
-    #status {
-      text-align: center;
-      margin-bottom: 16px;
-      color: #666;
-    }
-
-    #grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-      gap: 16px;
-    }
-
     .card {
-      background: #fff;
+      border: 1px solid #ccc; 
       border-radius: 6px;
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
-      overflow: hidden;
+      padding: 0.5rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-
     .card img {
-      width: 100%;
-      display: block;
+      width: 100%; 
+      height: auto; 
+      display: block; 
+      margin-bottom: 0.5rem;
     }
-
-    .card .info {
-      padding: 8px;
-      font-size: 14px;
-      color: #333;
-      line-height: 1.4;
+    .card p {
+      margin: 0.25rem 0;
     }
-
-    .card .info p {
-      margin: 4px 0;
-    }
+    #status { margin-top: 1rem; color: #666; }
   </style>
 </head>
-
 <body>
-
   <h1>Submitted Signatures</h1>
   <div id="status">Loading…</div>
   <div id="grid"></div>
 
-  <!-- Supabase UMD -->
+  <!-- 1. 引入 Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/umd/supabase.min.js"></script>
   <script>
-    (async () => {
-      // —— 填上你自己的项目信息 —— 
-      const SUPABASE_URL = 'https://feidochrnceyjojvnxog.supabase.co';
-      const SUPABASE_ANON = 'sb_publishable_zGi43MB9RNuhAWJ5f-O68A_nLK9HT7u';
-      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+    // 2. 用你自己的项目 URL + 匿名 Key
+    const SUPABASE_URL = 'https://feidochrncyejojvmxog.supabase.co'
+    const SUPABASE_ANON = 'sb_publishable_zGi43MB9RNuhAWJ5f-O68A_nLK9HT7u'
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
 
-      const statusEl = document.getElementById('status');
-      const gridEl = document.getElementById('grid');
-
+    async function loadSignatures() {
+      const statusEl = document.getElementById('status')
+      const gridEl   = document.getElementById('grid')
       try {
-        // 1) 从 signatures 表里拉取所有记录，按最新排前面
-        const {data: rows, error} = await supabase
+        // 3. 从 signatures 表拉数据，取 customer_id, signature_data, inserted_at
+        let { data: rows, error } = await supabase
           .from('signatures')
-          .select('customer_id, path, inserted_at')
-          .order('inserted_at', {ascending: false});
+          .select('customer_id, signature_data, inserted_at')
+          .order('inserted_at', { ascending: false })
 
-        if (error) throw error;
-        if (!rows.length) {
-          statusEl.textContent = 'No signatures submitted yet.';
-          return;
+        if (error) throw error
+        if (!rows || rows.length === 0) {
+          statusEl.textContent = 'No signatures submitted yet.'
+          return
         }
 
-        statusEl.style.display = 'none';
+        statusEl.style.display = 'none'
 
-        // 2) 遍历渲染
-        for (let row of rows) {
-          // 根据存储路径获取公开 URL
-          const {data: {publicUrl}, error: urlErr} = supabase
-            .storage
-            .from('signatures')
-            .getPublicUrl(row.path);
-          if (urlErr) {
-            console.error('getPublicUrl error', urlErr);
-            continue;
-          }
+        rows.forEach(row => {
+          const card = document.createElement('div')
+          card.className = 'card'
 
-          const card = document.createElement('div');
-          card.className = 'card';
+          // 4. signature_data 存的是 base64，直接当 img.src
+          const img = document.createElement('img')
+          img.src = row.signature_data
+          card.appendChild(img)
 
-          const img = document.createElement('img');
-          img.src = publicUrl;
-          card.appendChild(img);
-
-          const info = document.createElement('div');
-          info.className = 'info';
+          // 5. 信息区：ID + 时间
+          const info = document.createElement('div')
           info.innerHTML = `
-          <p><strong>ID:</strong> ${row.customer_id}</p>
-          <p><strong>Time:</strong> ${new Date(row.inserted_at).toLocaleString()}</p>
-        `;
-          card.appendChild(info);
+            <p><strong>ID:</strong> ${row.customer_id}</p>
+            <p><strong>Time:</strong> ${new Date(row.inserted_at).toLocaleString()}</p>
+          `
+          card.appendChild(info)
 
-          gridEl.appendChild(card);
-        }
+          gridEl.appendChild(card)
+        })
 
       } catch (err) {
-        console.error(err);
-        statusEl.textContent = 'Error loading data: ' + err.message;
+        console.error(err)
+        statusEl.textContent = 'Error loading data: ' + err.message
       }
-    })();
+    }
+
+    // 6. 页面加载后拉数据
+    loadSignatures()
   </script>
 </body>
-
 </html>
