@@ -14,7 +14,7 @@
 <body>
 
   <h1>Sign Here</h1>
-  <label for="id-input">ID:</label>
+  <label>ID:</label>
   <input id="id-input" placeholder="Enter ID">
 
   <canvas id="sig-canvas"></canvas>
@@ -23,83 +23,74 @@
     <button id="clear-btn">Clear</button>
     <button id="submit-btn">Submit</button>
   </div>
-
   <div id="status"></div>
 
-  <!-- 1. 引入 SignaturePad -->
+  <!-- 一定先后顺序引入两个库 -->
   <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
-  <!-- 2. 引入 Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/umd/supabase.min.js"></script>
 
-  <!-- 3. 你的业务脚本，一定要放在这两行之后 -->
+  <!-- 然后业务脚本放在最底部 -->
   <script>
-    // —— Supabase 初始化 ——  
-    const SUPABASE_URL  = 'https://feidochrncyejojvmxog.supabase.co';
-    const SUPABASE_ANON = 'sb_publishable_zGi43MB9RNuhAWJ5f-O68A_nLK9HT7u';
-    // 注意这里直接用全局的 supabase
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-    console.log('Supabase client:', supabase);
+    // 等待 DOM 和上面两个库都加载好
+    window.addEventListener('DOMContentLoaded', () => {
+      // —— 初始化 Supabase ——  
+      const SUPABASE_URL  = 'https://feidochrncyejojvmxog.supabase.co';
+      const SUPABASE_ANON = 'sb_publishable_zGi43MB9RNuhAWJ5f-O68A_nLK9HT7u';
+      const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+      console.log('Supabase client:', sb);
 
-    // —— DOM & SignaturePad 初始化 ——  
-    const canvas    = document.getElementById('sig-canvas');
-    // 确保 canvas 有具体 pixel 大小，否则触摸/画不出来
-    canvas.width  = canvas.offsetWidth;
-    canvas.height = canvas.offsetHeight;
+      // —— 初始化 SignaturePad ——  
+      const canvas = document.getElementById('sig-canvas');
+      // 给 canvas 真正设置分辨率
+      canvas.width  = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+      const pad = new SignaturePad(canvas);
+      console.log('SignaturePad ready:', pad);
 
-    const pad       = new SignaturePad(canvas);
-    console.log('SignaturePad initialized:', pad);
+      pad.onBegin = () => console.log('draw begin');
 
-    const idInput   = document.getElementById('id-input');
-    const clearBtn  = document.getElementById('clear-btn');
-    const submitBtn = document.getElementById('submit-btn');
-    const statusEl  = document.getElementById('status');
+      // DOM 元素引用
+      const idInput   = document.getElementById('id-input');
+      const clearBtn  = document.getElementById('clear-btn');
+      const submitBtn = document.getElementById('submit-btn');
+      const statusEl  = document.getElementById('status');
 
-    // —— 清空按钮 ——  
-    clearBtn.onclick = () => {
-      pad.clear();
-      statusEl.textContent = '';
-    };
-
-    // —— 提交按钮 ——  
-    submitBtn.onclick = async () => {
-      if (pad.isEmpty()) {
-        return alert('Please sign first!');
-      }
-      submitBtn.disabled = true;
-      statusEl.textContent = 'Submitting…';
-
-      try {
-        // 1. 拿到 Base64
-        const dataURL = pad.toDataURL('image/png');
-
-        // 2. 读取 ID
-        let customerId = idInput.value.trim();
-        if (!customerId) {
-          customerId = new URLSearchParams(location.search).get('cid') || 'guest';
-        }
-
-        // 3. 写入数据库
-        const { error } = await supabase
-          .from('signatures')
-          .insert([{
-            customer_id:    customerId,
-            signature_data: dataURL
-          }]);
-        if (error) throw error;
-
-        statusEl.textContent = 'Submit success!';
-        alert('Submit success!');
+      // 清空签名
+      clearBtn.onclick = () => {
         pad.clear();
-        idInput.value = '';
-
-      } catch (err) {
-        console.error(err);
-        alert('Submit failed: ' + err.message);
         statusEl.textContent = '';
-      } finally {
-        submitBtn.disabled = false;
-      }
-    };
+      };
+
+      // 提交签名
+      submitBtn.onclick = async () => {
+        if (pad.isEmpty()) return alert('Please sign first!');
+        submitBtn.disabled = true;
+        statusEl.textContent = 'Submitting…';
+
+        try {
+          const dataURL = pad.toDataURL('image/png');
+          let customerId = idInput.value.trim() || 
+            (new URLSearchParams(location.search).get('cid')) ||
+            'guest';
+
+          const { error } = await sb
+            .from('signatures')
+            .insert([{ customer_id: customerId, signature_data: dataURL }]);
+
+          if (error) throw error;
+          statusEl.textContent = 'Submit success!';
+          alert('Submit success!');
+          pad.clear();
+          idInput.value = '';
+        } catch (err) {
+          console.error(err);
+          alert('Submit failed: ' + err.message);
+          statusEl.textContent = '';
+        } finally {
+          submitBtn.disabled = false;
+        }
+      };
+    });
   </script>
 
 </body>
