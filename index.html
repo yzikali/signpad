@@ -1,197 +1,119 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>eSignature</title>
+  <title>Sign Here</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- SignaturePad CSS（可根据需要自定义） -->
   <style>
     body {
-      margin: 0;
-      padding: 20px;
-      font-family: sans-serif;
-      background: #f5f5f5;
-      display: flex;
-      justify-content: center;
-    }
-
-    .container {
-      width: 100%;
+      font-family: Arial, sans-serif;
       max-width: 600px;
-      background: #fff;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
-
-    h2 {
+      margin: 2rem auto;
       text-align: center;
-      margin-bottom: 10px;
     }
-
-    .id-input {
-      text-align: center;
-      margin-bottom: 12px;
+    input, button {
+      padding: .5rem 1rem;
+      margin: .5rem;
+      font-size: 1rem;
     }
-
-    .id-input label {
-      font-size: 16px;
-      margin-right: 8px;
-    }
-
-    .id-input input {
-      width: 60%;
-      max-width: 200px;
-      padding: 6px 8px;
-      font-size: 16px;
+    canvas {
       border: 1px solid #ccc;
-      border-radius: 4px;
-    }
-
-    .canvas-container {
-      position: relative;
       width: 100%;
-      padding-top: 50%;
-      /* 2:1 aspect ratio */
-    }
-
-    #canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      border: 1px solid #ccc;
+      height: 300px;
       touch-action: none;
     }
-
-    .btns {
-      text-align: center;
-      margin-top: 15px;
-    }
-
-    button {
-      margin: 0 10px;
-      padding: 8px 16px;
-      font-size: 16px;
-      border: none;
-      border-radius: 4px;
-      background: #007bff;
-      color: #fff;
-      cursor: pointer;
-    }
-
-    button:disabled {
-      background: #999;
-      cursor: not-allowed;
-    }
-
     #status {
-      text-align: center;
-      margin-top: 10px;
-      min-height: 1.2em;
-      color: #333;
+      margin-top: .5rem;
+      font-weight: bold;
     }
   </style>
 </head>
-
 <body>
-  <div class="container">
-    <h2>Sign Here</h2>
 
-    <div class="id-input">
-      <label for="customerIdInput">ID:</label>
-      <input type="text" id="customerIdInput" placeholder="Enter ID" />
-    </div>
+  <h1>Sign Here</h1>
+  <label for="id-input">ID:</label>
+  <input id="id-input" type="text" placeholder="Enter ID">
 
-    <div class="canvas-container">
-      <canvas id="canvas"></canvas>
-    </div>
-
-    <div class="btns">
-      <button id="clear">Clear</button>
-      <button id="save">Submit</button>
-    </div>
-
-    <p id="status"></p>
+  <div>
+    <canvas id="sig-canvas"></canvas>
   </div>
 
-  <!-- SignaturePad library -->
+  <div>
+    <button id="clear-btn">Clear</button>
+    <button id="submit-btn">Submit</button>
+  </div>
+
+  <div id="status"></div>
+
+  <!-- 引入 SignaturePad -->
   <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
-  <!-- Supabase UMD -->
+  <!-- 引入 Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/umd/supabase.min.js"></script>
+
   <script>
-    (function () {
-      const SUPABASE_URL = 'https://feidochrnceyjojvnxog.supabase.co';
-      const SUPABASE_ANON = 'sb_publishable_zGi43MB9RNuhAWJ5f-O68A_nLK9HT7u';
-      const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+    // ❶ 配置你的 Supabase 项目
+    const SUPABASE_URL  = 'https://feidochrncyejojvmxog.supabase.co';
+    const SUPABASE_ANON = 'sb_publishable_zGi43MB9RNuhAWJ5f-O68A_nLK9HT7u';
+    const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-      const canvas = document.getElementById('canvas');
-      const pad = new SignaturePad(canvas, {minWidth: 1, maxWidth: 3, penColor: 'black'});
+    // ❷ 初始化 SignaturePad 和 DOM 引用
+    const canvas     = document.getElementById('sig-canvas');
+    const pad        = new SignaturePad(canvas);
+    const idInput    = document.getElementById('id-input');
+    const clearBtn   = document.getElementById('clear-btn');
+    const submitBtn  = document.getElementById('submit-btn');
+    const statusEl   = document.getElementById('status');
 
-      function resizeCanvas() {
-        const ratio = Math.max(window.devicePixelRatio || 1, 1);
-        const rect = canvas.getBoundingClientRect();
-        canvas.width = rect.width * ratio;
-        canvas.height = rect.height * ratio;
-        canvas.getContext('2d').scale(ratio, ratio);
-        pad.clear();
+    // ❸ 绑定清空按钮
+    clearBtn.addEventListener('click', () => {
+      pad.clear();
+      statusEl.textContent = '';
+    });
+
+    // ❹ 绑定提交按钮
+    submitBtn.addEventListener('click', async () => {
+      if (pad.isEmpty()) {
+        alert('Please sign first!');
+        return;
       }
-      window.addEventListener('resize', resizeCanvas);
-      resizeCanvas();
+      submitBtn.disabled = true;
+      statusEl.textContent = 'Submitting…';
 
-      const clearBtn = document.getElementById('clear');
-      const saveBtn = document.getElementById('save');
-      const statusEl = document.getElementById('status');
-      const idInput = document.getElementById('customerIdInput');
+      try {
+        // 获取 Base64 Data URL
+        const dataURL = pad.toDataURL('image/png');
 
-      clearBtn.onclick = () => {
+        // 读取 ID：优先输入框，其次 URL 参数 ?cid=
+        let customerId = idInput.value.trim();
+        if (!customerId) {
+          customerId = new URLSearchParams(location.search).get('cid') || 'guest';
+        }
+
+        // 插入 signatures 表的新记录
+        const { error } = await supabase
+          .from('signatures')
+          .insert([{
+            customer_id:    customerId,
+            signature_data: dataURL
+          }]);
+
+        if (error) throw error;
+
+        statusEl.textContent = 'Submit success!';
+        alert('Submit success!');
         pad.clear();
-        statusEl.textContent = '';
         idInput.value = '';
-      };
 
-      saveBtn.onclick = async () => {
-        if (pad.isEmpty()) {
-          return alert('Please sign first!');
-        }
-        saveBtn.disabled = true;
-        statusEl.textContent = 'Uploading…';
-
-        try {
-          const blob = await (await fetch(pad.toDataURL('image/png'))).blob();
-
-          let customerId = idInput.value.trim();
-          if (!customerId) {
-            customerId = new URLSearchParams(location.search).get('cid') || 'guest';
-          }
-          const filename = `${customerId}_${Date.now()}.png`;
-
-          const {data, error: uploadError} = await supabaseClient
-            .storage
-            .from('signatures')
-            .upload(filename, blob, {contentType: 'image/png'});
-          if (uploadError) throw uploadError;
-
-          const {error: dbError} = await supabaseClient
-            .from('signatures')
-            .insert([{customer_id: customerId, path: data.path}]);
-          if (dbError) throw dbError;
-
-          statusEl.textContent = 'Submit success!';
-          alert('Submit success!');
-          pad.clear();
-          idInput.value = '';
-        } catch (err) {
-          console.error(err);
-          alert('Upload failed: ' + err.message);
-          statusEl.textContent = '';
-        } finally {
-          saveBtn.disabled = false;
-        }
-      };
-    })();
+      } catch (err) {
+        console.error(err);
+        alert('Submit failed: ' + err.message);
+        statusEl.textContent = '';
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
   </script>
-</body>
 
+</body>
 </html>
