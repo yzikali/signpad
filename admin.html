@@ -1,70 +1,140 @@
-<!-- admin.html 中的渲染部分，略去顶部引入和样式 -->
-<div id="grid"></div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Submitted Signatures</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 2rem;
+      max-width: 800px;
+      margin: auto;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+    #grid .card {
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .sig-thumb {
+      max-width: 150px;
+      max-height: 80px;
+      object-fit: contain;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .info {
+      flex: 1;
+    }
+    .info p {
+      margin: 0.2rem 0;
+    }
+    .download-btn {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      background: #007bff;
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+      font-size: 0.9rem;
+    }
+    .download-btn:hover {
+      background: #0056b3;
+    }
+    #status {
+      text-align: center;
+      margin-top: 2rem;
+      color: #666;
+    }
+  </style>
+  <!-- 引入 Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+  <h1>Submitted Signatures</h1>
+  <div id="grid"></div>
+  <div id="status">Loading...</div>
 
-<script>
-  ;(async () => {
-    const SUPABASE_URL = 'https://feidochrncyejojvmxog.supabase.co'
-    const SUPABASE_ANON = 'sb_publ…nLK9HT7u'
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
+  <script>
+  (async () => {
+    const SUPABASE_URL = 'https://feidochrncyejojvmxog.supabase.co';
+    const SUPABASE_ANON = 'sb_publ…nLK9HT7u'; // 请填入你的匿名公共 KEY
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-    const gridEl = document.getElementById('grid')
+    const gridEl   = document.getElementById('grid');
+    const statusEl = document.getElementById('status');
 
     try {
-      // 1) 取出 signatures 里的所有记录
+      // 1) 从 signatures 表中获取记录
       const { data: rows, error } = await supabase
         .from('signatures')
         .select('customer_id, path, inserted_at, signature_data')
-        .order('inserted_at', { ascending: false })
+        .order('inserted_at', { ascending: false });
 
-      if (error) throw error
+      if (error) throw error;
       if (!rows.length) {
-        gridEl.innerText = 'No signatures'
-        return
+        statusEl.textContent = 'No signatures submitted yet.';
+        return;
       }
 
-      // 2) 渲染每行
-      for (const row of rows) {
-        const card = document.createElement('div')
-        card.className = 'card'
+      // 清掉 loading 文本
+      statusEl.style.display = 'none';
 
-        // 2.1 签名字图
-        const img = document.createElement('img')
-        img.className = 'sig-thumb'
+      // 2) 渲染每条记录
+      for (const row of rows) {
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        // 2.1 缩略图 <img>
+        const img = document.createElement('img');
+        img.className = 'sig-thumb';
         if (row.path) {
-          // 如果是存储桶里直接拿 URL
+          // 从 Storage 桶获取公开 URL
           const { publicURL } = supabase
             .storage
             .from('signatures')
-            .getPublicUrl(row.path)
-          img.src = publicURL
+            .getPublicUrl(row.path);
+          img.src = publicURL;
         } else if (row.signature_data) {
-          // 如果是存在 signature_data 字段里的 base64
-          img.src = row.signature_data
+          // 直接用存库里的 Base64
+          img.src = row.signature_data;
         }
-        card.appendChild(img)
+        card.appendChild(img);
 
         // 2.2 文本信息
-        const info = document.createElement('div')
-        info.className = 'info'
+        const info = document.createElement('div');
+        info.className = 'info';
         info.innerHTML = `
           <p><strong>ID:</strong> ${row.customer_id}</p>
           <p><strong>Time:</strong> ${new Date(row.inserted_at).toLocaleString()}</p>
-        `
-        card.appendChild(info)
+        `;
+        card.appendChild(info);
 
         // 2.3 下载按钮
-        const dl = document.createElement('a')
-        dl.className = 'download-btn'
-        dl.innerText = 'Download'
-        dl.setAttribute('download', `${row.customer_id}_${Date.now()}.png`)
-        // href 指向上面生成的 img.src
-        dl.href = img.src
-        card.appendChild(dl)
+        const dl = document.createElement('a');
+        dl.className = 'download-btn';
+        dl.innerText = 'Download';
+        // 自动生成文件名：ID_时间戳.png
+        const filename = `${row.customer_id}_${Date.now()}.png`;
+        dl.setAttribute('download', filename);
+        // href 复用 img.src
+        dl.href = img.src;
+        card.appendChild(dl);
 
-        gridEl.appendChild(card)
+        gridEl.appendChild(card);
       }
     } catch (err) {
-      gridEl.innerText = 'Error loading data: ' + err.message
+      statusEl.textContent = 'Error loading data: ' + err.message;
     }
-  })()
-</script>
+  })();
+  </script>
+</body>
+</html>
