@@ -1,32 +1,21 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Submitted Signatures</title>
   <style>
-    body { font-family: sans-serif; padding: 1rem; }
-    #grid { 
-      display: grid; 
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); 
-      gap: 1rem; 
-      margin-top: 1rem;
+    body { font-family: sans-serif; padding: 2rem; }
+    h1 { margin-bottom: 1rem; }
+    #status { margin-bottom: 1rem; }
+    .card { 
+      border: 1px solid #ddd; 
+      padding: 1rem; 
+      margin-bottom: 1rem; 
+      display: flex;
+      align-items: center;
     }
-    .card {
-      border: 1px solid #ccc; 
-      border-radius: 6px;
-      padding: 0.5rem;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .card img {
-      width: 100%; 
-      height: auto; 
-      display: block; 
-      margin-bottom: 0.5rem;
-    }
-    .card p {
-      margin: 0.25rem 0;
-    }
-    #status { margin-top: 1rem; color: #666; }
+    .card img { max-width: 200px; max-height: 100px; margin-right: 1rem; }
+    .info { line-height: 1.4; }
   </style>
 </head>
 <body>
@@ -34,60 +23,57 @@
   <div id="status">Loading…</div>
   <div id="grid"></div>
 
-  <!-- 1. 引入 Supabase -->
+  <!-- 引入 Supabase 客户端 -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/umd/supabase.min.js"></script>
   <script>
-    // 2. 用你自己的项目 URL + 匿名 Key
-    const SUPABASE_URL = 'https://feidochrncyejojvmxog.supabase.co'
-    const SUPABASE_ANON = 'sb_publishable_zGi43MB9RNuhAWJ5f-O68A_nLK9HT7u'
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
+    (async () => {
+      // —— 换成你自己的项目 URL 和 anon key ——
+      const SUPABASE_URL = 'https://feidochrncyejojvmxog.supabase.co';
+      const SUPABASE_ANON = 'sb_publishable_zGi43MB9RNuhAWJ5f-O68A_nLK9HT7u';
 
-    async function loadSignatures() {
-      const statusEl = document.getElementById('status')
-      const gridEl   = document.getElementById('grid')
-      try {
-        // 3. 从 signatures 表拉数据，取 customer_id, signature_data, inserted_at
-        let { data: rows, error } = await supabase
-          .from('signatures')
-          .select('customer_id, signature_data, inserted_at')
-          .order('inserted_at', { ascending: false })
+      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-        if (error) throw error
-        if (!rows || rows.length === 0) {
-          statusEl.textContent = 'No signatures submitted yet.'
-          return
-        }
+      const statusEl = document.getElementById('status');
+      const gridEl   = document.getElementById('grid');
 
-        statusEl.style.display = 'none'
+      // 1) 取出所有记录，按时间降序
+      const { data: rows, error } = await supabase
+        .from('signatures')
+        .select('customer_id, signature_data, inserted_at')
+        .order('inserted_at', { ascending: false });
 
-        rows.forEach(row => {
-          const card = document.createElement('div')
-          card.className = 'card'
-
-          // 4. signature_data 存的是 base64，直接当 img.src
-          const img = document.createElement('img')
-          img.src = row.signature_data
-          card.appendChild(img)
-
-          // 5. 信息区：ID + 时间
-          const info = document.createElement('div')
-          info.innerHTML = `
-            <p><strong>ID:</strong> ${row.customer_id}</p>
-            <p><strong>Time:</strong> ${new Date(row.inserted_at).toLocaleString()}</p>
-          `
-          card.appendChild(info)
-
-          gridEl.appendChild(card)
-        })
-
-      } catch (err) {
-        console.error(err)
-        statusEl.textContent = 'Error loading data: ' + err.message
+      if (error) {
+        statusEl.textContent = 'Error loading data: ' + error.message;
+        console.error(error);
+        return;
       }
-    }
+      if (!rows.length) {
+        statusEl.textContent = 'No signatures submitted yet.';
+        return;
+      }
+      statusEl.style.display = 'none';
 
-    // 6. 页面加载后拉数据
-    loadSignatures()
+      // 2) 循环渲染
+      rows.forEach(row => {
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        // 用 signature_data（Base64）直接渲染 <img>
+        const img = document.createElement('img');
+        img.src = row.signature_data;
+        card.appendChild(img);
+
+        const info = document.createElement('div');
+        info.className = 'info';
+        info.innerHTML = `
+          <p><strong>ID:</strong> ${row.customer_id}</p>
+          <p><strong>Time:</strong> ${new Date(row.inserted_at).toLocaleString()}</p>
+        `;
+        card.appendChild(info);
+
+        gridEl.appendChild(card);
+      });
+    })();
   </script>
 </body>
 </html>
