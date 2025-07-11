@@ -5,75 +5,101 @@
   <title>Submitted Signatures</title>
   <style>
     body { font-family: sans-serif; padding: 2rem; }
-    .card { border: 1px solid #ccc; padding: 1rem; margin-bottom: 1rem; display: flex; align-items: center; }
-    .card img { max-width: 150px; margin-right: 1rem; }
-    .card .info { flex: 1; }
-    .card .download-btn { margin-left: auto; }
-    .download-btn button { padding: 0.5rem 1rem; }
+    .card {
+      border: 1px solid #ddd;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      position: relative;
+    }
+    .card img {
+      max-height: 120px;
+      display: block;
+      margin-bottom: .5rem;
+    }
+    .info { margin-bottom: .5rem; }
+    .download-btn {
+      position: absolute;
+      right: 1rem; top: 1rem;
+      padding: .3rem .6rem;
+      background: #0091ea; color: white;
+      border: none; border-radius: 3px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
   <h1>Submitted Signatures</h1>
-  <div id="grid">Loading…</div>
+  <div id="status">Loading…</div>
+  <div id="grid"></div>
 
-  <!-- Supabase JS -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/umd/supabase.min.js"></script>
+  <!-- supabase client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <script>
-    (async () => {
-      const SUPABASE_URL = 'https://feidochrncyejojvmxog.supabase.co'
-      const SUPABASE_ANON = 'sb_publishable_zGi43M89RNuhAWJ5f-068A_nLK9HT7u'
-      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
+    // —— STEP 1. 初始化 supabase 客户端 ——
+    const SUPABASE_URL = 'https://feidochrncyejojvmxog.supabase.co';
+    const SUPABASE_KEY = 'sb_publicable_zGi43M...'; // 你的 anon key
+    const supabase = supabasejs.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-      const gridEl = document.getElementById('grid')
+    // —— STEP 2. 取表数据 + 渲染 ——
+    const statusEl = document.getElementById('status');
+    const gridEl   = document.getElementById('grid');
+
+    async function loadSignatures() {
       try {
-        // 1) 读取签名记录
         const { data: rows, error } = await supabase
           .from('signatures')
           .select('customer_id, signature_data, inserted_at')
-          .order('inserted_at', { ascending: false })
+          .order('inserted_at', { ascending: false });
 
-        if (error) throw error
+        if (error) throw error;
         if (!rows.length) {
-          gridEl.innerHTML = '<p>No signatures submitted yet.</p>'
-          return
+          statusEl.textContent = 'No signatures yet.';
+          return;
         }
+        statusEl.style.display = 'none';
 
-        gridEl.innerHTML = ''  // 清空 loading 提示
-
-        // 2) 渲染每一条记录
         rows.forEach(row => {
-          const card = document.createElement('div')
-          card.className = 'card'
+          // 卡片容器
+          const card = document.createElement('div');
+          card.className = 'card';
 
-          // 签名图片（base64 数据）
-          const img = document.createElement('img')
-          img.src = row.signature_data
-          card.appendChild(img)
+          // 签名图片
+          const img = document.createElement('img');
+          img.src = row.signature_data; // data:image/png;base64,... 
+          card.appendChild(img);
 
-          // ID + 时间
-          const info = document.createElement('div')
-          info.className = 'info'
-          const time = new Date(row.inserted_at).toLocaleString()
+          // ID / Time 信息
+          const info = document.createElement('div');
+          info.className = 'info';
+          const time = new Date(row.inserted_at).toLocaleString();
           info.innerHTML = `
-            <p><strong>ID:</strong> ${row.customer_id}</p>
-            <p><strong>Time:</strong> ${time}</p>
-          `
-          card.appendChild(info)
+            <strong>ID:</strong> ${row.customer_id}<br>
+            <strong>Time:</strong> ${time}
+          `;
+          card.appendChild(info);
 
-          // ← 新增：下载按钮
-          const dl = document.createElement('a')
-          dl.className = 'download-btn'
-          dl.href = row.signature_data
-          dl.setAttribute('download', `${row.customer_id}_${Date.now()}.png`)
-          dl.innerHTML = `<button>Download</button>`
-          card.appendChild(dl)
+          // 下载按钮
+          const btn = document.createElement('button');
+          btn.className = 'download-btn';
+          btn.textContent = 'Download';
+          btn.onclick = () => {
+            const a = document.createElement('a');
+            a.href = row.signature_data;
+            // 默认文件名：signature-<ID>-<timestamp>.png
+            a.download = `signature-${row.customer_id}-${time.replace(/[/,: ]/g,'_')}.png`;
+            a.click();
+          };
+          card.appendChild(btn);
 
-          gridEl.appendChild(card)
-        })
+          gridEl.appendChild(card);
+        });
+
       } catch (err) {
-        gridEl.textContent = 'Error loading data: ' + err.message
+        statusEl.textContent = 'Error loading data: ' + err.message;
       }
-    })()
+    }
+
+    loadSignatures();
   </script>
 </body>
 </html>
