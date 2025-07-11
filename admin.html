@@ -1,30 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Submitted Signatures</title>
   <style>
-    body { font-family: sans-serif; padding: 2rem; }
+    body { font-family: sans-serif; padding: 20px; }
+    h1 { margin-bottom: 20px; }
     .card {
-      border: 1px solid #ddd;
-      padding: 1rem;
-      margin-bottom: 1rem;
-      position: relative;
+      border: 1px solid #ccc;
+      padding: 12px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
-    .card img {
-      max-height: 120px;
-      display: block;
-      margin-bottom: .5rem;
+    .info {
+      flex: 1;
+      margin-left: 12px;
     }
-    .info { margin-bottom: .5rem; }
+    .info p { margin: 4px 0; }
     .download-btn {
-      position: absolute;
-      right: 1rem; top: 1rem;
-      padding: .3rem .6rem;
-      background: #0091ea; color: white;
-      border: none; border-radius: 3px;
+      padding: 6px 12px;
+      background: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
       cursor: pointer;
     }
+    .download-btn:hover { background: #0056b3; }
   </style>
 </head>
 <body>
@@ -32,30 +35,32 @@
   <div id="status">Loading…</div>
   <div id="grid"></div>
 
-  <!-- supabase client -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <!-- 引入 Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/umd/supabase.min.js"></script>
   <script>
-    // —— STEP 1. 初始化 supabase 客户端 ——
+    // — STEP 1. 初始化 Supabase 客户端 —
     const SUPABASE_URL = 'https://feidochrncyejojvmxog.supabase.co';
-    const SUPABASE_KEY = 'sb_publicable_zGi43M...'; // 你的 anon key
-    const supabase = supabasejs.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZlaWRvY2hybmN5ZWpvanZteG9nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIwNjk3OTQsImV4cCI6MjA2NzY0NTc5NH0.OHEQyuCrvQGgeYmPRneAS1AezpGDqaNdI9tbWs7kV8M';
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // —— STEP 2. 取表数据 + 渲染 ——
+    // — STEP 2. 获取容器引用 —
     const statusEl = document.getElementById('status');
     const gridEl   = document.getElementById('grid');
 
+    // — STEP 3. 加载并渲染签名列表 —
     async function loadSignatures() {
       try {
         const { data: rows, error } = await supabase
           .from('signatures')
-          .select('customer_id, signature_data, inserted_at')
+          .select('customer_id, inserted_at, signature_data')
           .order('inserted_at', { ascending: false });
 
         if (error) throw error;
         if (!rows.length) {
-          statusEl.textContent = 'No signatures yet.';
+          statusEl.textContent = 'No signatures submitted yet.';
           return;
         }
+
         statusEl.style.display = 'none';
 
         rows.forEach(row => {
@@ -63,18 +68,19 @@
           const card = document.createElement('div');
           card.className = 'card';
 
-          // 签名图片
+          // 签名图
           const img = document.createElement('img');
-          img.src = row.signature_data; // data:image/png;base64,... 
+          img.src = row.signature_data;
+          img.width = 120;
+          img.height = 60;
           card.appendChild(img);
 
-          // ID / Time 信息
+          // 信息区
           const info = document.createElement('div');
           info.className = 'info';
-          const time = new Date(row.inserted_at).toLocaleString();
           info.innerHTML = `
-            <strong>ID:</strong> ${row.customer_id}<br>
-            <strong>Time:</strong> ${time}
+            <p><strong>ID:</strong> ${row.customer_id}</p>
+            <p><strong>Time:</strong> ${new Date(row.inserted_at).toLocaleString()}</p>
           `;
           card.appendChild(info);
 
@@ -83,17 +89,18 @@
           btn.className = 'download-btn';
           btn.textContent = 'Download';
           btn.onclick = () => {
+            // 将 data URL 转成下载
             const a = document.createElement('a');
             a.href = row.signature_data;
-            // 默认文件名：signature-<ID>-<timestamp>.png
-            a.download = `signature-${row.customer_id}-${time.replace(/[/,: ]/g,'_')}.png`;
+            // filename 中去掉非文件名字符
+            const safeId = row.customer_id.replace(/[^a-z0-9_\-]/gi, '_');
+            a.download = `sig_${safeId}_${Date.now()}.png`;
             a.click();
           };
           card.appendChild(btn);
 
           gridEl.appendChild(card);
         });
-
       } catch (err) {
         statusEl.textContent = 'Error loading data: ' + err.message;
       }
