@@ -15,14 +15,15 @@
 
   <h1>Sign Here</h1>
 
-  <label for="id-input">ID:</label>
-  <input id="id-input" placeholder="Enter ID" />
+  <!-- 修改：标签文案和 placeholder -->
+  <label for="name-input">Enter your name:</label>
+  <input id="name-input" type="text" placeholder="Name" />
 
   <canvas id="sig-canvas"></canvas>
 
   <div>
-    <button id="clear-btn">Clear</button>
-    <button id="submit-btn">Submit</button>
+    <button id="clear-btn" type="button">Clear</button>
+    <button id="submit-btn" type="button">Submit</button>
   </div>
 
   <div id="status"></div>
@@ -36,33 +37,25 @@
     const SUPABASE_URL  = 'https://feidochrncyejojvmxog.supabase.co';
     const SUPABASE_ANON = 'sb_publishable_zGi43MB9RNuhAWJ5f-O68A_nLK9HT7u';
     const supabase      = createClient(SUPABASE_URL, SUPABASE_ANON);
-    console.log('Supabase client initialized:', supabase);
 
-    // —— 2. 等 DOM 完全就绪后，初始化 SignaturePad ——  
+    // —— 2. 等 DOM 完全就绪后，再做后续操作 ——  
     window.addEventListener('DOMContentLoaded', () => {
       const canvas = document.getElementById('sig-canvas');
-      // 设定画布分辨率，保证触摸/鼠标都能正常工作
+      // 根据元素尺寸设置画布分辨率
       canvas.width  = canvas.offsetWidth;
       canvas.height = canvas.offsetHeight;
 
       const pad = new SignaturePad(canvas);
-      console.log('SignaturePad ready:', pad);
+      const nameInput   = document.getElementById('name-input');
+      const clearBtn    = document.getElementById('clear-btn');
+      const submitBtn   = document.getElementById('submit-btn');
+      const statusEl    = document.getElementById('status');
 
-      pad.onBegin = () => console.log('draw begin');
-
-      // 元素引用
-      const idInput   = document.getElementById('id-input');
-      const clearBtn  = document.getElementById('clear-btn');
-      const submitBtn = document.getElementById('submit-btn');
-      const statusEl  = document.getElementById('status');
-
-      // 清除按钮
       clearBtn.onclick = () => {
         pad.clear();
         statusEl.textContent = '';
       };
 
-      // 提交按钮
       submitBtn.onclick = async () => {
         if (pad.isEmpty()) {
           alert('Please sign first!');
@@ -72,23 +65,19 @@
         statusEl.textContent = 'Submitting…';
 
         try {
-          // 1) 导出 Base64
           const dataURL = pad.toDataURL('image/png');
-          // 2) 拿 ID
-          let customerId = idInput.value.trim();
-          if (!customerId) {
-            customerId = new URLSearchParams(location.search).get('cid') || 'guest';
-          }
-          // 3) 插入数据库
+          let customerName = nameInput.value.trim() || 'guest';
+
           const { error } = await supabase
             .from('signatures')
-            .insert([{ customer_id: customerId, signature_data: dataURL }]);
+            .insert([{ customer_id: customerName, signature_data: dataURL }]);
+
           if (error) throw error;
 
           statusEl.textContent = 'Submit success!';
           alert('Submit success!');
           pad.clear();
-          idInput.value = '';
+          nameInput.value = '';
 
         } catch (err) {
           console.error(err);
