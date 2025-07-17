@@ -4,6 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Sign Here</title>
+
+  <!-- Flatpickr 样式 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
   <style>
     body {
       max-width: 600px;
@@ -64,7 +68,8 @@
     </div>
     <div>
       <label for="date-of-birth">Date of Birth:</label>
-      <input id="date-of-birth" type="date" required>
+      <!-- 改为文本输入，由 Flatpickr 控制 -->
+      <input id="date-of-birth" type="text" placeholder="YYYY-MM-DD" required>
     </div>
     <div>
       <label for="mobile">Mobile Number:</label>
@@ -75,7 +80,7 @@
       <input id="email" type="email" placeholder="Enter email address" required>
     </div>
     <div>
-      <label for="opening-amount">Opening Amount:</label>
+      <label for="opening-amount">Account opening amount:</label>
       <input id="opening-amount" type="number" step="0.01" placeholder="Enter amount" required>
     </div>
     <div>
@@ -98,64 +103,62 @@
 
   <div id="status"></div>
 
-  <!-- 引入 ESM 版 SignaturePad 与 Supabase JS -->
+  <!-- 引入库 -->
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script type="module">
     import SignaturePad from 'https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/+esm';
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-    // —— 1. 初始化 Supabase 客户端 ——  
+    // —— 初始化 Supabase 客户端 ——  
     const SUPABASE_URL  = 'https://feidochrncyejojvmxog.supabase.co';
     const SUPABASE_ANON = 'sb_publishable_zGi43MB9RNuhAWJ5f-O68A_nLK9HT7u';
     const supabase      = createClient(SUPABASE_URL, SUPABASE_ANON);
 
     window.addEventListener('DOMContentLoaded', () => {
-      // —— 2. 设置 SignaturePad 画布大小 ——  
+      // —— Flatpickr 英文日期 ——  
+      flatpickr("#date-of-birth", {
+        dateFormat: "Y-m-d",
+        locale: "en"
+      });
+
+      // —— SignaturePad 初始化 ——  
       const canvas = document.getElementById('sig-canvas');
       canvas.width  = canvas.offsetWidth;
       canvas.height = canvas.offsetHeight;
       const pad = new SignaturePad(canvas);
 
-      // —— 3. 获取 DOM 引用 ——  
-      const form            = document.getElementById('info-form');
-      const clearBtn        = document.getElementById('clear-btn');
-      const submitBtn       = document.getElementById('submit-btn');
-      const statusEl        = document.getElementById('status');
+      // —— DOM 引用 ——  
+      const form      = document.getElementById('info-form');
+      const clearBtn  = document.getElementById('clear-btn');
+      const submitBtn = document.getElementById('submit-btn');
+      const statusEl  = document.getElementById('status');
 
-      // —— 4. 清除签名和状态 ——  
       clearBtn.onclick = () => {
         pad.clear();
         statusEl.textContent = '';
       };
 
-      // —— 5. 提交数据 ——  
       submitBtn.onclick = async () => {
-        // 5.1 验证签名、表单必填项
         if (pad.isEmpty()) {
-          alert('Please sign first!！');
+          alert('Please sign first!');
           return;
         }
         if (!form.reportValidity()) {
-          // HTML5 required 校验
           return;
         }
-
         submitBtn.disabled = true;
         statusEl.textContent = 'Submitting…';
 
         try {
-          // 导出签名为 Base64
           const dataURL = pad.toDataURL('image/png');
-
-          // 读取表单值
-          const fullName  = document.getElementById('full-name').value.trim();
-          const dob       = document.getElementById('date-of-birth').value;
-          const mobile    = document.getElementById('mobile').value.trim();
-          const email     = document.getElementById('email').value.trim();
-          const amount    = parseFloat(document.getElementById('opening-amount').value);
+          const fullName = document.getElementById('full-name').value.trim();
+          const dob      = document.getElementById('date-of-birth').value;
+          const mobile   = document.getElementById('mobile').value.trim();
+          const email    = document.getElementById('email').value.trim();
+          const amount   = parseFloat(document.getElementById('opening-amount').value);
           const occupation= document.getElementById('occupation').value.trim();
-          const address   = document.getElementById('residential-address').value.trim();
+          const address  = document.getElementById('residential-address').value.trim();
 
-          // 插入 Supabase
           const { error } = await supabase
             .from('signatures')
             .insert([{
@@ -168,11 +171,10 @@
               residential_address: address,
               signature_data:      dataURL
             }]);
-
           if (error) throw error;
 
           statusEl.textContent = 'Submit success!';
-          alert('Submission successful!！');
+          alert('Submit success!');
           pad.clear();
           form.reset();
 
