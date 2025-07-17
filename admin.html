@@ -1,116 +1,124 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Submitted Signatures</title>
   <style>
-    body { font-family: sans-serif; padding: 2rem; }
-    h1 { margin-bottom: 1rem; }
-    #status { margin-bottom: 1rem; }
-    .card {
-      display: flex;
-      align-items: center;
-      padding: 1rem;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      margin-bottom: 1rem;
+    body {
+      max-width:800px;
+      margin:2rem auto;
+      font-family:Arial,sans-serif;
+      line-height:1.5;
     }
-    .card img {
-      width: 150px;
-      height: auto;
-      margin-right: 1rem;
+    h1 {
+      text-align:center;
     }
-    .info { flex: 1; }
-    .download-btn {
-      padding: 0.5rem 1rem;
-      background: #0070f3;
-      border: none;
-      border-radius: 4px;
-      color: white;
-      cursor: pointer;
+    .entry {
+      border:1px solid #ccc;
+      padding:1rem;
+      margin-bottom:1rem;
+      position:relative;
     }
-    .download-btn:hover { background: #0059c1; }
+    .entry img {
+      max-height:120px;
+      display:block;
+      margin-bottom:0.5rem;
+    }
+    .entry .info {
+      margin-bottom:0.5rem;
+    }
+    .entry button {
+      position:absolute;
+      top:1rem;
+      right:1rem;
+      padding:0.4rem 0.8rem;
+    }
+    #status {
+      text-align:center;
+      margin-top:2rem;
+      font-weight:bold;
+    }
   </style>
 </head>
 <body>
 
-  <h1>已提交的签名</h1>
-  <div id="status">加载中…</div>
-  <div id="grid"></div>
+  <h1>Submitted Signatures</h1>
+  <div id="status">Loading…</div>
+  <div id="list"></div>
 
-  <!-- 1）加载 Supabase UMD 包 -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/umd/supabase.min.js"></script>
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-  <!-- 2）你的业务脚本 -->
-  <script>
-    // — 请替换成你自己的 Project URL 和 anon 公钥 —
-    const SUPABASE_URL = 'https://feidochrncyejojvmxog.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZlaWRvY2hybmN5ZWpvanZteG9nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIwNjk3OTQsImV4cCI6MjA2NzY0NTc5NH0.OHEQyuCrvQGgeYmPRneAS1AezpGDqaNdI9tbWs7kV8M';
-
-    // 不要用 global supabase，改用 client
-    const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    // —— Supabase 客户端初始化 —— 
+    const SUPABASE_URL  = 'https://feidochrncyejojvmxog.supabase.co';
+    const SUPABASE_ANON = 'sb_publishable_zGi43MB9RNuhAWJ5f-O68A_nLK9HT7u';
+    const supabase      = createClient(SUPABASE_URL, SUPABASE_ANON);
 
     const statusEl = document.getElementById('status');
-    const gridEl   = document.getElementById('grid');
+    const listEl   = document.getElementById('list');
 
-    async function loadSignatures() {
+    async function loadEntries() {
+      statusEl.textContent = 'Loading…';
       try {
-        const { data: rows, error } = await client
+        const { data, error } = await supabase
           .from('signatures')
-          .select('customer_id, inserted_at, signature_data')
+          .select('*')
           .order('inserted_at', { ascending: false });
 
         if (error) throw error;
-        if (!rows.length) {
-          statusEl.textContent = '目前还没有提交任何签名。';
+        if (!data || data.length === 0) {
+          statusEl.textContent = 'No entries found.';
           return;
         }
         statusEl.style.display = 'none';
 
-        rows.forEach(row => {
-          const card = document.createElement('div');
-          card.className = 'card';
+        // 渲染每条记录
+        data.forEach(row => {
+          const div = document.createElement('div');
+          div.className = 'entry';
 
-          // 缩略图
+          // 签名图
           const img = document.createElement('img');
           img.src = row.signature_data;
-          card.appendChild(img);
-
-          // ID 和时间
-          const info = document.createElement('div');
-          info.className = 'info';
-          info.innerHTML = `
-            <p><strong>ID:</strong> ${row.customer_id}</p>
-            <p><strong>时间:</strong> ${new Date(row.inserted_at).toLocaleString()}</p>
-          `;
-          card.appendChild(info);
+          img.alt = 'Signature';
+          div.appendChild(img);
 
           // 下载按钮
           const btn = document.createElement('button');
-          btn.textContent = '下载';
-          btn.className = 'download-btn';
-          btn.onclick = () => {
-            const link = document.createElement('a');
-            link.href = row.signature_data;
-            // 生成安全的文件名
-            const safeId = row.customer_id.replace(/[^a-z0-9_\-]/gi, '_');
-            link.download = `signature_${safeId}_${Date.now()}.png`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-          };
-          card.appendChild(btn);
+          btn.textContent = 'Download';
+          btn.addEventListener('click', () => {
+            const a = document.createElement('a');
+            a.href = row.signature_data;
+            a.download = `${row.full_name || 'signature'}-${row.inserted_at}.png`;
+            a.click();
+          });
+          div.appendChild(btn);
 
-          gridEl.appendChild(card);
+          // 信息列表
+          const info = document.createElement('div');
+          info.className = 'info';
+          info.innerHTML = `
+            <strong>Full Name:</strong> ${row.full_name || ''}<br>
+            <strong>Date of Birth:</strong> ${row.date_of_birth || ''}<br>
+            <strong>Mobile Number:</strong> ${row.mobile || ''}<br>
+            <strong>Email Address:</strong> ${row.email || ''}<br>
+            <strong>Account opening amount:</strong> ${row.opening_amount || ''}<br>
+            <strong>Occupation:</strong> ${row.occupation || ''}<br>
+            <strong>Residential Address:</strong> ${row.residential_address || ''}<br>
+            <strong>Time:</strong> ${new Date(row.inserted_at).toLocaleString()}
+          `;
+          div.appendChild(info);
+
+          listEl.appendChild(div);
         });
       } catch (err) {
-        statusEl.textContent = '加载出错：' + err.message;
+        console.error(err);
+        statusEl.textContent = 'Error loading data: ' + err.message;
       }
     }
 
-    // 启动
-    loadSignatures();
+    window.addEventListener('DOMContentLoaded', loadEntries);
   </script>
-
 </body>
 </html>
