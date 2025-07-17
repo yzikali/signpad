@@ -1,43 +1,50 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="UTF‑8" />
+  <meta name="viewport" content="width=device‑width,initial‑scale=1" />
   <title>Submitted Signatures</title>
   <style>
     body {
-      max-width:800px;
-      margin:2rem auto;
-      font-family:Arial,sans-serif;
-      line-height:1.5;
+      max-width: 800px;
+      margin: 2rem auto;
+      font-family: Arial, sans-serif;
+      line-height: 1.4;
     }
     h1 {
-      text-align:center;
+      text-align: center;
     }
-    .entry {
-      border:1px solid #ccc;
-      padding:1rem;
-      margin-bottom:1rem;
-      position:relative;
+    .sig-card {
+      border: 1px solid #ccc;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      display: grid;
+      grid-template-columns: 150px 1fr 100px;
+      grid-gap: 1rem;
+      align-items: center;
     }
-    .entry img {
-      max-height:120px;
-      display:block;
-      margin-bottom:0.5rem;
+    .sig-card img {
+      max-width: 140px;
+      border: 1px solid #999;
     }
-    .entry .info {
-      margin-bottom:0.5rem;
+    .sig-info div {
+      margin-bottom: .5rem;
     }
-    .entry button {
-      position:absolute;
-      top:1rem;
-      right:1rem;
-      padding:0.4rem 0.8rem;
+    .download-btn {
+      padding: .5rem;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .download-btn:hover {
+      background: #0056b3;
     }
     #status {
-      text-align:center;
-      margin-top:2rem;
-      font-weight:bold;
+      text-align: center;
+      margin-top: 2rem;
+      font-weight: bold;
     }
   </style>
 </head>
@@ -45,80 +52,88 @@
 
   <h1>Submitted Signatures</h1>
   <div id="status">Loading…</div>
-  <div id="list"></div>
+  <div id="grid"></div>
 
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-    // —— Supabase 客户端初始化 —— 
+    // —— 初始化 Supabase 客户端 —— 
     const SUPABASE_URL  = 'https://feidochrncyejojvmxog.supabase.co';
     const SUPABASE_ANON = 'sb_publishable_zGi43MB9RNuhAWJ5f-O68A_nLK9HT7u';
     const supabase      = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-    const statusEl = document.getElementById('status');
-    const listEl   = document.getElementById('list');
+    // —— 载入并展示签名记录 —— 
+    async function loadSignatures() {
+      const statusEl = document.getElementById('status');
+      const gridEl   = document.getElementById('grid');
 
-    async function loadEntries() {
-      statusEl.textContent = 'Loading…';
-      try {
-        const { data, error } = await supabase
-          .from('signatures')
-          .select('*')
-          .order('inserted_at', { ascending: false });
+      // 从 DB 读出所有字段
+      const { data: rows, error } = await supabase
+        .from('signatures')
+        .select(`
+          id,
+          full_name,
+          date_of_birth,
+          mobile,
+          email,
+          opening_amount,
+          occupation,
+          residential_address,
+          signature_data,
+          inserted_at
+        `)
+        .order('inserted_at', { ascending: false });
 
-        if (error) throw error;
-        if (!data || data.length === 0) {
-          statusEl.textContent = 'No entries found.';
-          return;
-        }
-        statusEl.style.display = 'none';
-
-        // 渲染每条记录
-        data.forEach(row => {
-          const div = document.createElement('div');
-          div.className = 'entry';
-
-          // 签名图
-          const img = document.createElement('img');
-          img.src = row.signature_data;
-          img.alt = 'Signature';
-          div.appendChild(img);
-
-          // 下载按钮
-          const btn = document.createElement('button');
-          btn.textContent = 'Download';
-          btn.addEventListener('click', () => {
-            const a = document.createElement('a');
-            a.href = row.signature_data;
-            a.download = `${row.full_name || 'signature'}-${row.inserted_at}.png`;
-            a.click();
-          });
-          div.appendChild(btn);
-
-          // 信息列表
-          const info = document.createElement('div');
-          info.className = 'info';
-          info.innerHTML = `
-            <strong>Full Name:</strong> ${row.full_name || ''}<br>
-            <strong>Date of Birth:</strong> ${row.date_of_birth || ''}<br>
-            <strong>Mobile Number:</strong> ${row.mobile || ''}<br>
-            <strong>Email Address:</strong> ${row.email || ''}<br>
-            <strong>Account opening amount:</strong> ${row.opening_amount || ''}<br>
-            <strong>Occupation:</strong> ${row.occupation || ''}<br>
-            <strong>Residential Address:</strong> ${row.residential_address || ''}<br>
-            <strong>Time:</strong> ${new Date(row.inserted_at).toLocaleString()}
-          `;
-          div.appendChild(info);
-
-          listEl.appendChild(div);
-        });
-      } catch (err) {
-        console.error(err);
-        statusEl.textContent = 'Error loading data: ' + err.message;
+      if (error) {
+        statusEl.textContent = 'Error loading data: ' + error.message;
+        return;
       }
+
+      statusEl.style.display = 'none';
+
+      // 遍历每条记录，生成卡片
+      rows.forEach(row => {
+        // 卡片容器
+        const card = document.createElement('div');
+        card.className = 'sig-card';
+
+        // ① 签名图片
+        const img = document.createElement('img');
+        img.src = row.signature_data;
+        img.alt = 'Signature ' + row.id;
+        card.appendChild(img);
+
+        // ② 信息区
+        const info = document.createElement('div');
+        info.className = 'sig-info';
+        info.innerHTML = `
+          <div><strong>Full Name:</strong> ${row.full_name}</div>
+          <div><strong>DOB:</strong> ${row.date_of_birth}</div>
+          <div><strong>Mobile:</strong> ${row.mobile}</div>
+          <div><strong>Email:</strong> ${row.email}</div>
+          <div><strong>Amount:</strong> ${row.opening_amount}</div>
+          <div><strong>Occupation:</strong> ${row.occupation}</div>
+          <div><strong>Address:</strong> ${row.residential_address}</div>
+          <div><strong>Time:</strong> ${new Date(row.inserted_at).toLocaleString()}</div>
+        `;
+        card.appendChild(info);
+
+        // ③ 下载按钮
+        const btnWrapper = document.createElement('div');
+        const dl = document.createElement('a');
+        dl.href = row.signature_data;
+        dl.download = `signature_${row.id}.png`;
+        dl.textContent = 'Download';
+        dl.className = 'download-btn';
+        btnWrapper.appendChild(dl);
+        card.appendChild(btnWrapper);
+
+        gridEl.appendChild(card);
+      });
     }
 
-    window.addEventListener('DOMContentLoaded', loadEntries);
+    loadSignatures();
   </script>
+
 </body>
 </html>
