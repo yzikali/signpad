@@ -6,7 +6,10 @@
   <title>Sign Here</title>
 
   <!-- Flatpickr 样式 -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css"
+  />
 
   <style>
     body {
@@ -64,32 +67,32 @@
   <form id="info-form">
     <div>
       <label for="full-name">Full Name:</label>
-      <input id="full-name" type="text" placeholder="Enter full name" required>
+      <input id="full-name" type="text" placeholder="Enter full name" required />
     </div>
     <div>
       <label for="date-of-birth">Date of Birth:</label>
-      <!-- 改为文本输入，由 Flatpickr 控制 -->
-      <input id="date-of-birth" type="text" placeholder="YYYY-MM-DD" required>
+      <!-- 文本框，后面由 flatpickr 绑定 -->
+      <input id="date-of-birth" type="text" placeholder="YYYY-MM-DD" required />
     </div>
     <div>
       <label for="mobile">Mobile Number:</label>
-      <input id="mobile" type="tel" placeholder="Enter mobile number" required>
+      <input id="mobile" type="tel" placeholder="Enter mobile number" required />
     </div>
     <div>
       <label for="email">Email Address:</label>
-      <input id="email" type="email" placeholder="Enter email address" required>
+      <input id="email" type="email" placeholder="Enter email address" required />
     </div>
     <div>
       <label for="opening-amount">Account opening amount:</label>
-      <input id="opening-amount" type="number" step="0.01" placeholder="Enter amount" required>
+      <input id="opening-amount" type="number" step="0.01" placeholder="Enter amount" required />
     </div>
     <div>
       <label for="occupation">Occupation:</label>
-      <input id="occupation" type="text" placeholder="Enter occupation" required>
+      <input id="occupation" type="text" placeholder="Enter occupation" required />
     </div>
     <div>
       <label for="residential-address">Residential Address:</label>
-      <input id="residential-address" type="text" placeholder="Enter address" required>
+      <input id="residential-address" type="text" placeholder="Enter address" required />
     </div>
   </form>
 
@@ -103,42 +106,45 @@
 
   <div id="status"></div>
 
-  <!-- 引入库 -->
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <!-- ES Module 脚本 -->
   <script type="module">
+    // 引入依赖
+    import flatpickr from 'https://cdn.jsdelivr.net/npm/flatpickr/+esm';
+    import { English } from 'https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/default.js';
     import SignaturePad from 'https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/+esm';
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-    // —— 初始化 Supabase 客户端 ——  
+    // 初始化 Supabase
     const SUPABASE_URL  = 'https://feidochrncyejojvmxog.supabase.co';
     const SUPABASE_ANON = 'sb_publishable_zGi43MB9RNuhAWJ5f-O68A_nLK9HT7u';
     const supabase      = createClient(SUPABASE_URL, SUPABASE_ANON);
 
     window.addEventListener('DOMContentLoaded', () => {
-      // —— Flatpickr 英文日期 ——  
-      flatpickr("#date-of-birth", {
-        dateFormat: "Y-m-d",
-        locale: "en"
+      // —— 1. 英文 flatpickr 日期 ——  
+      flatpickr('#date-of-birth', {
+        locale: English,
+        dateFormat: 'Y-m-d',
+        allowInput: true
       });
 
-      // —— SignaturePad 初始化 ——  
+      // —— 2. SignaturePad 初始化 ——  
       const canvas = document.getElementById('sig-canvas');
       canvas.width  = canvas.offsetWidth;
       canvas.height = canvas.offsetHeight;
       const pad = new SignaturePad(canvas);
 
-      // —— DOM 引用 ——  
+      // —— 3. DOM 引用 ——  
       const form      = document.getElementById('info-form');
       const clearBtn  = document.getElementById('clear-btn');
       const submitBtn = document.getElementById('submit-btn');
       const statusEl  = document.getElementById('status');
 
-      clearBtn.onclick = () => {
+      clearBtn.addEventListener('click', () => {
         pad.clear();
         statusEl.textContent = '';
-      };
+      });
 
-      submitBtn.onclick = async () => {
+      submitBtn.addEventListener('click', async () => {
         if (pad.isEmpty()) {
           alert('Please sign first!');
           return;
@@ -151,26 +157,21 @@
 
         try {
           const dataURL = pad.toDataURL('image/png');
-          const fullName = document.getElementById('full-name').value.trim();
-          const dob      = document.getElementById('date-of-birth').value;
-          const mobile   = document.getElementById('mobile').value.trim();
-          const email    = document.getElementById('email').value.trim();
-          const amount   = parseFloat(document.getElementById('opening-amount').value);
-          const occupation= document.getElementById('occupation').value.trim();
-          const address  = document.getElementById('residential-address').value.trim();
+          const payload = {
+            full_name:           document.getElementById('full-name').value.trim(),
+            date_of_birth:       document.getElementById('date-of-birth').value,
+            mobile:              document.getElementById('mobile').value.trim(),
+            email:               document.getElementById('email').value.trim(),
+            opening_amount:      parseFloat(document.getElementById('opening-amount').value),
+            occupation:          document.getElementById('occupation').value.trim(),
+            residential_address: document.getElementById('residential-address').value.trim(),
+            signature_data:      dataURL
+          };
 
           const { error } = await supabase
             .from('signatures')
-            .insert([{
-              full_name:           fullName,
-              date_of_birth:       dob,
-              mobile:              mobile,
-              email:               email,
-              opening_amount:      amount,
-              occupation:          occupation,
-              residential_address: address,
-              signature_data:      dataURL
-            }]);
+            .insert([ payload ]);
+
           if (error) throw error;
 
           statusEl.textContent = 'Submit success!';
@@ -185,7 +186,7 @@
         } finally {
           submitBtn.disabled = false;
         }
-      };
+      });
     });
   </script>
 </body>
