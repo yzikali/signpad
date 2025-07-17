@@ -5,20 +5,90 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Sign Here</title>
   <style>
-    body { max-width:600px; margin:2rem auto; font-family:Arial,sans-serif; text-align:center; }
-    canvas { border:1px solid #ccc; width:100%; height:300px; touch-action:none; }
-    input, button { padding:.5rem 1rem; margin:.5rem; }
-    #status { font-weight:bold; margin-top:.5rem; }
+    body {
+      max-width: 600px;
+      margin: 2rem auto;
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+    img.logo {
+      width: 150px;
+      margin-bottom: 1rem;
+    }
+    form {
+      text-align: left;
+      margin-bottom: 1rem;
+    }
+    form > div {
+      margin: 0.5rem 0;
+    }
+    label {
+      display: inline-block;
+      width: 150px;
+      font-weight: bold;
+    }
+    input {
+      width: calc(100% - 160px);
+      padding: 0.4rem;
+      box-sizing: border-box;
+    }
+    canvas {
+      border: 1px solid #ccc;
+      width: 100%;
+      height: 300px;
+      touch-action: none;
+      margin-bottom: 1rem;
+    }
+    button {
+      padding: 0.6rem 1.2rem;
+      margin: 0 0.5rem;
+    }
+    #status {
+      margin-top: 0.8rem;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
-  <img src="logo.png" style="width:200px;height:200px" />
+
+  <!-- Logo -->
+  <img class="logo" src="logo.png" alt="Logo">
+
   <h1>Sign Here</h1>
 
-  <!-- 修改：标签文案和 placeholder -->
-  <label for="name-input">Enter your name:</label>
-  <input id="name-input" type="text" placeholder="Name" />
+  <!-- 客户资料表单 -->
+  <form id="info-form">
+    <div>
+      <label for="full-name">Full Name:</label>
+      <input id="full-name" type="text" placeholder="Enter full name" required>
+    </div>
+    <div>
+      <label for="date-of-birth">Date of Birth:</label>
+      <input id="date-of-birth" type="date" required>
+    </div>
+    <div>
+      <label for="mobile">Mobile Number:</label>
+      <input id="mobile" type="tel" placeholder="Enter mobile number" required>
+    </div>
+    <div>
+      <label for="email">Email Address:</label>
+      <input id="email" type="email" placeholder="Enter email address" required>
+    </div>
+    <div>
+      <label for="opening-amount">Opening Amount:</label>
+      <input id="opening-amount" type="number" step="0.01" placeholder="Enter amount" required>
+    </div>
+    <div>
+      <label for="occupation">Occupation:</label>
+      <input id="occupation" type="text" placeholder="Enter occupation" required>
+    </div>
+    <div>
+      <label for="residential-address">Residential Address:</label>
+      <input id="residential-address" type="text" placeholder="Enter address" required>
+    </div>
+  </form>
 
+  <!-- 签名板 -->
   <canvas id="sig-canvas"></canvas>
 
   <div>
@@ -28,7 +98,7 @@
 
   <div id="status"></div>
 
-  <!-- 下面用 ES Module 方式引入库和写逻辑 -->
+  <!-- 引入 ESM 版 SignaturePad 与 Supabase JS -->
   <script type="module">
     import SignaturePad from 'https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/+esm';
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
@@ -38,46 +108,73 @@
     const SUPABASE_ANON = 'sb_publishable_zGi43MB9RNuhAWJ5f-O68A_nLK9HT7u';
     const supabase      = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-    // —— 2. 等 DOM 完全就绪后，再做后续操作 ——  
     window.addEventListener('DOMContentLoaded', () => {
+      // —— 2. 设置 SignaturePad 画布大小 ——  
       const canvas = document.getElementById('sig-canvas');
-      // 根据元素尺寸设置画布分辨率
       canvas.width  = canvas.offsetWidth;
       canvas.height = canvas.offsetHeight;
-
       const pad = new SignaturePad(canvas);
-      const nameInput   = document.getElementById('name-input');
-      const clearBtn    = document.getElementById('clear-btn');
-      const submitBtn   = document.getElementById('submit-btn');
-      const statusEl    = document.getElementById('status');
 
+      // —— 3. 获取 DOM 引用 ——  
+      const form            = document.getElementById('info-form');
+      const clearBtn        = document.getElementById('clear-btn');
+      const submitBtn       = document.getElementById('submit-btn');
+      const statusEl        = document.getElementById('status');
+
+      // —— 4. 清除签名和状态 ——  
       clearBtn.onclick = () => {
         pad.clear();
         statusEl.textContent = '';
       };
 
+      // —— 5. 提交数据 ——  
       submitBtn.onclick = async () => {
+        // 5.1 验证签名、表单必填项
         if (pad.isEmpty()) {
-          alert('Please sign first!');
+          alert('请先签名！');
           return;
         }
+        if (!form.reportValidity()) {
+          // HTML5 required 校验
+          return;
+        }
+
         submitBtn.disabled = true;
         statusEl.textContent = 'Submitting…';
 
         try {
+          // 导出签名为 Base64
           const dataURL = pad.toDataURL('image/png');
-          let customerName = nameInput.value.trim() || 'guest';
 
+          // 读取表单值
+          const fullName  = document.getElementById('full-name').value.trim();
+          const dob       = document.getElementById('date-of-birth').value;
+          const mobile    = document.getElementById('mobile').value.trim();
+          const email     = document.getElementById('email').value.trim();
+          const amount    = parseFloat(document.getElementById('opening-amount').value);
+          const occupation= document.getElementById('occupation').value.trim();
+          const address   = document.getElementById('residential-address').value.trim();
+
+          // 插入 Supabase
           const { error } = await supabase
             .from('signatures')
-            .insert([{ customer_id: customerName, signature_data: dataURL }]);
+            .insert([{
+              full_name:           fullName,
+              date_of_birth:       dob,
+              mobile:              mobile,
+              email:               email,
+              opening_amount:      amount,
+              occupation:          occupation,
+              residential_address: address,
+              signature_data:      dataURL
+            }]);
 
           if (error) throw error;
 
           statusEl.textContent = 'Submit success!';
-          alert('Submit success!');
+          alert('提交成功！');
           pad.clear();
-          nameInput.value = '';
+          form.reset();
 
         } catch (err) {
           console.error(err);
