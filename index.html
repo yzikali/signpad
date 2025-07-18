@@ -4,8 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Sign Here</title>
-  <!-- Flatpickr 样式 -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+  <!-- Flatpickr 样式（英文版）-->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css"
+  />
   <style>
     body { max-width:600px; margin:2rem auto; font-family:Arial,sans-serif; text-align:center; }
     img.logo { width:120px; margin-bottom:1rem; }
@@ -23,13 +26,13 @@
   <h1>Sign Here</h1>
 
   <form id="sign-form">
-    <label>Full Name:             <input id="full-name"           type="text"   placeholder="Enter full name" /></label>
-    <label>Date of Birth:         <input id="date-of-birth"      type="text"   placeholder="YYYY-MM-DD" autocomplete="off" /></label>
-    <label>Mobile Number:         <input id="mobile"             type="text"   placeholder="Enter mobile number" /></label>
-    <label>Email Address:         <input id="email"              type="email"  placeholder="Enter email address" /></label>
-    <label>Account opening amount:<input id="opening-amount"    type="number" placeholder="Enter amount" /></label>
-    <label>Occupation:            <input id="occupation"         type="text"   placeholder="Enter occupation" /></label>
-    <label>Residential Address:   <input id="residential-address"type="text"   placeholder="Enter address" /></label>
+    <label>Full Name:              <input id="full-name"           type="text"   placeholder="Enter full name" /></label>
+    <label>Date of Birth:          <input id="date-of-birth"      type="text"   placeholder="YYYY-MM-DD" autocomplete="off" /></label>
+    <label>Mobile Number:          <input id="mobile"             type="text"   placeholder="Enter mobile number" /></label>
+    <label>Email Address:          <input id="email"              type="email"  placeholder="Enter email address" /></label>
+    <label>Account opening amount: <input id="opening-amount"     type="number" placeholder="Enter amount" /></label>
+    <label>Occupation:             <input id="occupation"         type="text"   placeholder="Enter occupation" /></label>
+    <label>Residential Address:    <input id="residential-address"type="text"   placeholder="Enter address" /></label>
   </form>
 
   <canvas id="sig-canvas"></canvas>
@@ -41,75 +44,91 @@
 
   <div id="status"></div>
 
-  <script type="module">
-    import flatpickr        from 'https://cdn.jsdelivr.net/npm/flatpickr?module'
-    import SignaturePad     from 'https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/+esm'
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+  <!-- UMD 脚本 -->
+  <!-- 1. flatpickr (英文版) -->
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <!-- 2. SignaturePad -->
+  <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+  <!-- 3. Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/supabase.min.js"></script>
 
-    const SUPABASE_URL  = 'https://feidochrncyejojvmxog.supabase.co'
-    const SUPABASE_ANON = 'sb_publishable_zGi43MB9RNuhAWJ5f-O68A_nLK9HT7u'
-    const supabase      = createClient(SUPABASE_URL, SUPABASE_ANON)
+  <script>
+    // ———— 初始化 Supabase ————
+    const SUPABASE_URL  = 'https://feidochrncyejojvmxog.supabase.co';
+    const SUPABASE_ANON = 'sb_publishable_zGi43MB9RNuhAWJ5f-O68A_nLK9HT7u';
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
     window.addEventListener('DOMContentLoaded', () => {
-      // 1. 英文版日期选择
-      flatpickr('#date-of-birth', { dateFormat:'Y-m-d' })
+      //—— 1) 英文日期选择器 ——
+      flatpickr('#date-of-birth', { dateFormat: 'Y-m-d' });
 
-      // 2. 签名板初始化
-      const canvas = document.getElementById('sig-canvas')
-      canvas.width  = canvas.offsetWidth
-      canvas.height = canvas.offsetHeight
-      const pad = new SignaturePad(canvas)
+      //—— 2) 签名板初始化 ——
+      const canvas = document.getElementById('sig-canvas');
+      // 设置画布像素分辨率
+      canvas.width  = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+      const pad = new SignaturePad(canvas);
 
-      // 3. 元素
-      const form   = document.getElementById('sign-form')
-      const full   = document.getElementById('full-name')
-      const dob    = document.getElementById('date-of-birth')
-      const mob    = document.getElementById('mobile')
-      const mail   = document.getElementById('email')
-      const amt    = document.getElementById('opening-amount')
-      const occ    = document.getElementById('occupation')
-      const addr   = document.getElementById('residential-address')
-      const clear  = document.getElementById('clear-btn')
-      const submit = document.getElementById('submit-btn')
-      const status = document.getElementById('status')
+      //—— 3) 获取表单元素 ——
+      const form   = document.getElementById('sign-form');
+      const full   = document.getElementById('full-name');
+      const dob    = document.getElementById('date-of-birth');
+      const mob    = document.getElementById('mobile');
+      const mail   = document.getElementById('email');
+      const amt    = document.getElementById('opening-amount');
+      const occ    = document.getElementById('occupation');
+      const addr   = document.getElementById('residential-address');
+      const clear  = document.getElementById('clear-btn');
+      const submit = document.getElementById('submit-btn');
+      const status = document.getElementById('status');
 
-      clear.onclick = () => {
-        pad.clear()
-        status.textContent = ''
-      }
+      // 清空签名 & 状态
+      clear.addEventListener('click', () => {
+        pad.clear();
+        status.textContent = '';
+      });
 
-      submit.onclick = async () => {
-        if (pad.isEmpty()) { alert('Please sign first!'); return }
-        submit.disabled = true
-        status.textContent = 'Submitting...'
+      // 提交
+      submit.addEventListener('click', async () => {
+        if (pad.isEmpty()) {
+          alert('Please sign first!');
+          return;
+        }
+        submit.disabled = true;
+        status.textContent = 'Submitting...';
+
         try {
-          const sig = pad.toDataURL('image/png')
+          const signatureData = pad.toDataURL('image/png');
+          const payload = {
+            full_name:           full.value.trim(),
+            date_of_birth:       dob.value || null,
+            mobile:              mob.value.trim(),
+            email:               mail.value.trim(),
+            opening_amount:      amt.value || null,
+            occupation:          occ.value.trim(),
+            residential_address: addr.value.trim(),
+            signature_data:      signatureData
+          };
+
           const { error } = await supabase
             .from('signatures')
-            .insert([{
-              full_name:           full.value.trim(),
-              date_of_birth:       dob.value || null,
-              mobile:              mob.value.trim(),
-              email:               mail.value.trim(),
-              opening_amount:      amt.value || null,
-              occupation:          occ.value.trim(),
-              residential_address: addr.value.trim(),
-              signature_data:      sig
-            }])
-          if (error) throw error
-          status.textContent = 'Success!'
-          alert('Submitted successfully')
-          pad.clear()
-          form.reset()
+            .insert([payload]);
+
+          if (error) throw error;
+
+          status.textContent = 'Submit success!';
+          alert('Submit success!');
+          pad.clear();
+          form.reset();
         } catch (e) {
-          console.error(e)
-          alert('Submit failed: ' + e.message)
-          status.textContent = ''
+          console.error(e);
+          alert('Submit failed: ' + e.message);
+          status.textContent = '';
         } finally {
-          submit.disabled = false
+          submit.disabled = false;
         }
-      }
-    })
+      });
+    });
   </script>
 </body>
 </html>
