@@ -110,7 +110,7 @@
             signature_data:      signatureData
           };
 
-          const { error } = await supabase
+          const { error } = await supabase2
             .from('signatures')
             .insert([payload]);
 
