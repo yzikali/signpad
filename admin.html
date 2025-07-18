@@ -1,200 +1,123 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta http-equiv="Content-Language" content="en-US" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sign Here</title>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Admin – Submitted Signatures</title>
   <style>
-    body {
-      max-width: 600px;
-      margin: 2rem auto;
-      font-family: Arial, sans-serif;
-      background: #f9f9f9;
-      color: #333;
+    body { max-width:800px; margin:2rem auto; font-family:Arial,sans-serif; }
+    h1 { text-align:center; }
+    #status { text-align:center; margin:1rem 0; font-weight:bold; }
+    .entry {
+      display:flex; align-items:center;
+      border:1px solid #ddd; padding:1rem; margin-bottom:1rem;
     }
-    img.logo {
-      display: block;
-      margin: 0 auto 1rem;
-      width: 120px;
-      height: auto;
+    .entry img {
+      width:120px; height:auto; border:1px solid #ccc; margin-right:1rem;
     }
-    h1 {
-      text-align: center;
-      margin-bottom: 1rem;
-    }
-    form > div {
-      margin-bottom: 0.75rem;
-      display: flex;
-      align-items: center;
-    }
-    form label {
-      width: 150px;
-      text-align: right;
-      margin-right: 0.5rem;
-    }
-    form input {
-      flex: 1;
-      padding: 0.5rem;
-      font-size: 1rem;
-    }
-    canvas {
-      border: 1px solid #ccc;
-      width: 100%;
-      height: 300px;
-      margin-bottom: 0.75rem;
-      touch-action: none;
-      background: #fff;
-    }
-    .buttons {
-      text-align: center;
-      margin-top: 0.5rem;
-    }
-    .buttons button {
-      padding: 0.5rem 1.25rem;
-      margin: 0 0.5rem;
-      font-size: 1rem;
-      cursor: pointer;
-    }
-    #status {
-      text-align: center;
-      margin-top: 1rem;
-      font-weight: bold;
+    .info { flex:1; }
+    .info p { margin:4px 0; font-size:0.95rem; }
+    .download-btn {
+      padding:.5rem 1rem; cursor:pointer;
+      background:#007bff; color:#fff; border:none; border-radius:4px;
     }
   </style>
 </head>
 <body>
 
-  <!-- 你的 Logo -->
-  <img src="logo.png" alt="Fisdom Logo" class="logo" />
+  <h1>Submitted Signatures (Admin)</h1>
+  <div id="status">Loading…</div>
+  <div id="list"></div>
 
-  <h1>Sign Here</h1>
-
-  <form id="data-form">
-    <div>
-      <label for="full-name">Full Name:</label>
-      <input id="full-name" type="text" placeholder="Enter full name" required />
-    </div>
-    <div>
-      <label for="dob">Date of Birth:</label>
-      <input id="dob" type="date" required />
-    </div>
-    <div>
-      <label for="mobile">Mobile Number:</label>
-      <input id="mobile" type="tel" placeholder="Enter mobile number" required />
-    </div>
-    <div>
-      <label for="email">Email Address:</label>
-      <input id="email" type="email" placeholder="Enter email address" required />
-    </div>
-    <div>
-      <label for="amount">Account opening amount:</label>
-      <input id="amount" type="number" placeholder="Enter amount" required />
-    </div>
-    <div>
-      <label for="occupation">Occupation:</label>
-      <input id="occupation" type="text" placeholder="Enter occupation" required />
-    </div>
-    <div>
-      <label for="address">Residential Address:</label>
-      <input id="address" type="text" placeholder="Enter address" required />
-    </div>
-  </form>
-
-  <!-- 签名区 -->
-  <canvas id="sig-canvas"></canvas>
-
-  <div class="buttons">
-    <button id="clear-btn" type="button">Clear</button>
-    <button id="submit-btn" type="button">Submit</button>
-  </div>
-
-  <div id="status"></div>
-
-  <script type="module">
-    import SignaturePad from 'https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/+esm';
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
-    // —— 1. 初始化 Supabase 客户端 ——  
+  <!-- 用 UMD 方式引入 Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/supabase.min.js"></script>
+  <script>
+    // 1. 初始化 Supabase（只读）
     const SUPABASE_URL  = 'https://feidochrncyejojvmxog.supabase.co';
     const SUPABASE_ANON = 'sb_publishable_zGi43MB9RNuhAWJ5f-O68A_nLK9HT7u';
-    const supabase      = createClient(SUPABASE_URL, SUPABASE_ANON);
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-    window.addEventListener('DOMContentLoaded', () => {
-      // —— 2. 设置 SignaturePad ——  
-      const canvas = document.getElementById('sig-canvas');
-      canvas.width  = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
-      const pad = new SignaturePad(canvas);
+    // 格式化时间
+    function formatTime(iso) {
+      const d = new Date(iso);
+      return d.getFullYear() + '/' +
+             String(d.getMonth()+1).padStart(2,'0') + '/' +
+             String(d.getDate()).padStart(2,'0') + ' ' +
+             String(d.getHours()).padStart(2,'0') + ':' +
+             String(d.getMinutes()).padStart(2,'0');
+    }
 
-      // 表单元素
-      const form       = document.getElementById('data-form');
-      const fullNameEl = document.getElementById('full-name');
-      const dobEl      = document.getElementById('dob');
-      const mobileEl   = document.getElementById('mobile');
-      const emailEl    = document.getElementById('email');
-      const amountEl   = document.getElementById('amount');
-      const occEl      = document.getElementById('occupation');
-      const addrEl     = document.getElementById('address');
-      const clearBtn   = document.getElementById('clear-btn');
-      const submitBtn  = document.getElementById('submit-btn');
-      const statusEl   = document.getElementById('status');
+    // 点击下载
+    function downloadImage(dataURL, filename) {
+      const a = document.createElement('a');
+      a.href = dataURL;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
 
-      clearBtn.onclick = () => {
-        pad.clear();
-        statusEl.textContent = '';
-      };
+    // 加载并渲染
+    async function loadEntries() {
+      const statusEl = document.getElementById('status');
+      const listEl   = document.getElementById('list');
+      statusEl.textContent = 'Loading…';
 
-      submitBtn.onclick = async () => {
-        // 验证签名非空
-        if (pad.isEmpty()) {
-          alert('Please sign before submitting.');
-          return;
-        }
-        // 验证表单
-        if (!form.reportValidity()) {
-          return;
-        }
+      const { data, error } = await supabase
+        .from('signatures')
+        .select('*')
+        .order('inserted_at', { ascending: false });
 
-        submitBtn.disabled = true;
-        statusEl.textContent = 'Submitting…';
+      if (error) {
+        statusEl.textContent = 'Error: ' + error.message;
+        return;
+      }
+      if (!data.length) {
+        statusEl.textContent = 'No records.';
+        return;
+      }
 
-        try {
-          // 导出签名
-          const signatureData = pad.toDataURL('image/png');
+      statusEl.textContent = '';
+      data.forEach(row => {
+        const e = document.createElement('div');
+        e.className = 'entry';
 
-          // 构造记录
-          const record = {
-            full_name:           fullNameEl.value.trim(),
-            date_of_birth:       dobEl.value,            // 格式 YYYY-MM-DD
-            mobile:              mobileEl.value.trim(),
-            email:               emailEl.value.trim(),
-            opening_amount:      amountEl.value,
-            occupation:          occEl.value.trim(),
-            residential_address: addrEl.value.trim(),
-            signature_data:      signatureData
-          };
+        // 缩略图
+        const img = document.createElement('img');
+        img.src = row.signature_data;
+        img.alt = 'Signature';
 
-          // 插入到 signatures 表
-          const { error } = await supabase
-            .from('signatures')
-            .insert([ record ]);
+        // 文字信息
+        const info = document.createElement('div');
+        info.className = 'info';
+        info.innerHTML = `
+          <p><strong>Full Name:</strong> ${row.full_name || '-'}</p>
+          <p><strong>DOB:</strong> ${row.date_of_birth || '-'}</p>
+          <p><strong>Mobile:</strong> ${row.mobile || '-'}</p>
+          <p><strong>Email:</strong> ${row.email || '-'}</p>
+          <p><strong>Amount:</strong> ${row.opening_amount ?? '-'}</p>
+          <p><strong>Occupation:</strong> ${row.occupation || '-'}</p>
+          <p><strong>Address:</strong> ${row.residential_address || '-'}</p>
+          <p><strong>Time:</strong> ${formatTime(row.inserted_at)}</p>
+        `;
 
-          if (error) throw error;
+        // 下载按钮
+        const btn = document.createElement('button');
+        btn.className = 'download-btn';
+        btn.textContent = 'Download';
+        btn.onclick = () => {
+          const safeName = (row.full_name || 'guest').replace(/\s+/g,'_');
+          const ts = row.inserted_at.replace(/[:\-T\.Z]/g,'');
+          const filename = `${safeName}_${ts}.png`;
+          downloadImage(row.signature_data, filename);
+        };
 
-          statusEl.textContent = 'Submit success!';
-          alert('Submit success!');
-          pad.clear();
-          form.reset();
-        } catch (err) {
-          console.error(err);
-          statusEl.textContent = '';
-          alert('Submit failed: ' + err.message);
-        } finally {
-          submitBtn.disabled = false;
-        }
-      };
-    });
+        e.append(img, info, btn);
+        listEl.append(e);
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', loadEntries);
   </script>
 </body>
 </html>
