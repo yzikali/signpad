@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Sign Here</title>
 
-  <!-- Flatpickr 样式 -->
+  <!-- Flatpickr 默认样式（英文） -->
   <link
     rel="stylesheet"
     href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css"
@@ -17,26 +17,26 @@
       margin: 2rem auto;
       font-family: Arial, sans-serif;
       text-align: center;
+      background: #f9f9f9;
     }
     img.logo {
       width: 150px;
+      height: auto;
       margin-bottom: 1rem;
     }
     form {
       text-align: left;
       margin-bottom: 1rem;
     }
-    form > div {
+    form label {
+      display: flex;
+      justify-content: space-between;
       margin: 0.5rem 0;
     }
-    label {
-      display: inline-block;
-      width: 150px;
-      font-weight: bold;
-    }
-    input {
-      width: calc(100% - 160px);
-      padding: 0.4rem;
+    form input {
+      flex: 1;
+      padding: 0.5rem;
+      margin-left: 1rem;
       box-sizing: border-box;
     }
     canvas {
@@ -45,58 +45,60 @@
       height: 300px;
       touch-action: none;
       margin-bottom: 1rem;
+      background: white;
     }
     button {
-      padding: 0.6rem 1.2rem;
+      padding: 0.5rem 1rem;
       margin: 0 0.5rem;
     }
     #status {
-      margin-top: 0.8rem;
       font-weight: bold;
+      margin-top: 0.5rem;
     }
   </style>
 </head>
 <body>
 
-  <!-- Logo -->
-  <img class="logo" src="logo.png" alt="Logo">
-
+  <img src="logo.png" alt="Logo" class="logo" />
   <h1>Sign Here</h1>
 
-  <!-- 客户资料表单 -->
-  <form id="info-form">
-    <div>
-      <label for="full-name">Full Name:</label>
-      <input id="full-name" type="text" placeholder="Enter full name" required />
-    </div>
-    <div>
-      <label for="date-of-birth">Date of Birth:</label>
-      <!-- 文本框，后面由 flatpickr 绑定 -->
-      <input id="date-of-birth" type="text" placeholder="YYYY-MM-DD" required />
-    </div>
-    <div>
-      <label for="mobile">Mobile Number:</label>
-      <input id="mobile" type="tel" placeholder="Enter mobile number" required />
-    </div>
-    <div>
-      <label for="email">Email Address:</label>
-      <input id="email" type="email" placeholder="Enter email address" required />
-    </div>
-    <div>
-      <label for="opening-amount">Account opening amount:</label>
-      <input id="opening-amount" type="number" step="0.01" placeholder="Enter amount" required />
-    </div>
-    <div>
-      <label for="occupation">Occupation:</label>
-      <input id="occupation" type="text" placeholder="Enter occupation" required />
-    </div>
-    <div>
-      <label for="residential-address">Residential Address:</label>
-      <input id="residential-address" type="text" placeholder="Enter address" required />
-    </div>
+  <form id="sign-form">
+    <label>
+      Full Name:
+      <input id="full-name" type="text" placeholder="Enter full name" />
+    </label>
+    <label>
+      Date of Birth:
+      <!-- 从 date 改成 text -->
+      <input
+        id="date-of-birth"
+        type="text"
+        placeholder="YYYY-MM-DD"
+        autocomplete="off"
+      />
+    </label>
+    <label>
+      Mobile Number:
+      <input id="mobile" type="text" placeholder="Enter mobile number" />
+    </label>
+    <label>
+      Email Address:
+      <input id="email" type="email" placeholder="Enter email address" />
+    </label>
+    <label>
+      Account opening amount:
+      <input id="opening-amount" type="number" placeholder="Enter amount" />
+    </label>
+    <label>
+      Occupation:
+      <input id="occupation" type="text" placeholder="Enter occupation" />
+    </label>
+    <label>
+      Residential Address:
+      <input id="residential-address" type="text" placeholder="Enter address" />
+    </label>
   </form>
 
-  <!-- 签名板 -->
   <canvas id="sig-canvas"></canvas>
 
   <div>
@@ -106,79 +108,79 @@
 
   <div id="status"></div>
 
-  <!-- ES Module 脚本 -->
+  <!-- Flatpickr + SignaturePad + Supabase 客户端 -->
   <script type="module">
-    // 引入依赖
-    import flatpickr from 'https://cdn.jsdelivr.net/npm/flatpickr/+esm';
-    import { English } from 'https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/default.js';
+    import flatpickr from 'https://cdn.jsdelivr.net/npm/flatpickr/dist/esm/index.js';
     import SignaturePad from 'https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/+esm';
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-    // 初始化 Supabase
+    // —— 1. 初始化 Supabase ——  
     const SUPABASE_URL  = 'https://feidochrncyejojvmxog.supabase.co';
     const SUPABASE_ANON = 'sb_publishable_zGi43MB9RNuhAWJ5f-O68A_nLK9HT7u';
     const supabase      = createClient(SUPABASE_URL, SUPABASE_ANON);
 
     window.addEventListener('DOMContentLoaded', () => {
-      // —— 1. 英文 flatpickr 日期 ——  
+      // —— 2. 初始化 Flatpickr ——  
       flatpickr('#date-of-birth', {
-        locale: English,
         dateFormat: 'Y-m-d',
-        allowInput: true
+        locale: 'default' // 默认就是 English
       });
 
-      // —— 2. SignaturePad 初始化 ——  
+      // —— 3. 初始化 SignaturePad ——  
       const canvas = document.getElementById('sig-canvas');
       canvas.width  = canvas.offsetWidth;
       canvas.height = canvas.offsetHeight;
       const pad = new SignaturePad(canvas);
 
-      // —— 3. DOM 引用 ——  
-      const form      = document.getElementById('info-form');
-      const clearBtn  = document.getElementById('clear-btn');
-      const submitBtn = document.getElementById('submit-btn');
-      const statusEl  = document.getElementById('status');
+      // —— 4. 元素引用 ——  
+      const formEl    = document.getElementById('sign-form');
+      const fullNameEl  = document.getElementById('full-name');
+      const dobEl       = document.getElementById('date-of-birth');
+      const mobileEl    = document.getElementById('mobile');
+      const emailEl     = document.getElementById('email');
+      const amountEl    = document.getElementById('opening-amount');
+      const occEl       = document.getElementById('occupation');
+      const addrEl      = document.getElementById('residential-address');
+      const clearBtn    = document.getElementById('clear-btn');
+      const submitBtn   = document.getElementById('submit-btn');
+      const statusEl    = document.getElementById('status');
 
-      clearBtn.addEventListener('click', () => {
+      clearBtn.onclick = () => {
         pad.clear();
         statusEl.textContent = '';
-      });
+      };
 
-      submitBtn.addEventListener('click', async () => {
+      submitBtn.onclick = async () => {
         if (pad.isEmpty()) {
           alert('Please sign first!');
-          return;
-        }
-        if (!form.reportValidity()) {
           return;
         }
         submitBtn.disabled = true;
         statusEl.textContent = 'Submitting…';
 
         try {
-          const dataURL = pad.toDataURL('image/png');
-          const payload = {
-            full_name:           document.getElementById('full-name').value.trim(),
-            date_of_birth:       document.getElementById('date-of-birth').value,
-            mobile:              document.getElementById('mobile').value.trim(),
-            email:               document.getElementById('email').value.trim(),
-            opening_amount:      parseFloat(document.getElementById('opening-amount').value),
-            occupation:          document.getElementById('occupation').value.trim(),
-            residential_address: document.getElementById('residential-address').value.trim(),
-            signature_data:      dataURL
+          const signatureData = pad.toDataURL('image/png');
+          const record = {
+            full_name:           fullNameEl.value.trim(),
+            date_of_birth:       dobEl.value || null,
+            mobile:              mobileEl.value.trim(),
+            email:               emailEl.value.trim(),
+            opening_amount:      amountEl.value || null,
+            occupation:          occEl.value.trim(),
+            residential_address: addrEl.value.trim(),
+            signature_data:      signatureData
           };
 
           const { error } = await supabase
             .from('signatures')
-            .insert([ payload ]);
+            .insert([ record ]);
 
           if (error) throw error;
 
           statusEl.textContent = 'Submit success!';
           alert('Submit success!');
           pad.clear();
-          form.reset();
-
+          formEl.reset();
         } catch (err) {
           console.error(err);
           alert('Submit failed: ' + err.message);
@@ -186,7 +188,7 @@
         } finally {
           submitBtn.disabled = false;
         }
-      });
+      };
     });
   </script>
 </body>
