@@ -30,12 +30,12 @@
   <div id="list"></div>
 
   <!-- 用 UMD 方式引入 Supabase -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     // 1. 初始化 Supabase（只读）
     const SUPABASE_URL  = 'https://feidochrncyejojvmxog.supabase.co';
     const SUPABASE_ANON = 'sb_publishable_zGi43MB9RNuhAWJ5f-O68A_nLK9HT7u';
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+    const supabase2 = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
     // 格式化时间
     function formatTime(iso) {
@@ -63,7 +63,7 @@
       const listEl   = document.getElementById('list');
       statusEl.textContent = 'Loading…';
 
-      const { data, error } = await supabase
+      const { data, error } = await supabase2
         .from('signatures')
         .select('*')
         .order('inserted_at', { ascending: false });
